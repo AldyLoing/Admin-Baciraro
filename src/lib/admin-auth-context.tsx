@@ -42,7 +42,15 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    const data = await res.json();
+
+    let data: any = {};
+    const text = await res.text();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return { error: `Unexpected response (${res.status}). Please try again.` };
+    }
+
     if (!res.ok) return { error: data.error || "Login failed" };
     setAdmin(data.user);
     return {};

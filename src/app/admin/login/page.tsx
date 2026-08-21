@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
     setLoading(false);
 
     if (res.error) {
-      setError("Email atau password salah. Coba lagi.");
+      setError(res.error);
       return;
     }
 
