@@ -69,6 +69,24 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: "/admin/qr-event",
+    label: "QR Koin Event",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h7v7h-7v-7zm2 2v3h3v-3h-3z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/leaderboard",
+    label: "Leaderboard",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 21h8M12 17v4M7 4h10v3a5 5 0 01-10 0V4zm5-2a2 2 0 012 2v1h-4V4a2 2 0 012-2zM5 4H3v1a3 3 0 003 3M19 4h2v1a3 3 0 01-3 3" />
+      </svg>
+    ),
+  },
 ];
 
 type SidebarProps = {
