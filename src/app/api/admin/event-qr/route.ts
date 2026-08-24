@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 
-const CLAIM_BASE = process.env.NEXT_PUBLIC_CLAIM_BASE_URL || "https://www.baciraro.net";
+const CLAIM_BASE = process.env.NEXT_PUBLIC_CLAIM_BASE_URL || "https://admin-baciraro-zeta.vercel.app";
 
 export async function GET() {
   const admin = await requireAdmin();
