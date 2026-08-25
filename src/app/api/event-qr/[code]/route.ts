@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     qr: {
       code: data.code,
       event_name: data.event_name,
-      event_points: data.event_points,
+      event_points: 10,
       used: !!data.claimed_at,
     },
   });
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   const { error: txError } = await supabase.from("points_transactions").insert({
     customer_id: customer.id,
     qr_code_id: qr.id,
-    points: qr.event_points,
+    points: 10,
     description: `Klaim QR Event${qr.event_name ? " " + qr.event_name : ""}`,
   });
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .eq("id", customer.id)
     .single();
 
-  const newTotal = (cust?.total_points || 0) + qr.event_points;
+  const newTotal = (cust?.total_points || 0) + 10;
 
   await supabase
     .from("customers")
@@ -93,5 +93,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     .update({ claimed_at: new Date().toISOString(), customer_id: customer.id })
     .eq("id", qr.id);
 
-  return NextResponse.json({ ok: true, points: qr.event_points, total_points: newTotal });
+  return NextResponse.json({ ok: true, points: 10, total_points: newTotal });
 }
