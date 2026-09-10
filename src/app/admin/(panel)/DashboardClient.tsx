@@ -26,6 +26,10 @@ type MemberStat = {
 
 type MonthlyRow = { month: string; income: number; expense: number };
 type StatusRow = { name: string; value: number; color: string };
+type KategoriRow = { name: string; value: number };
+type ClientRow = { name: string; value: number };
+type MemberPayoutRow = { name: string; amount: number };
+type TaskAssigneeRow = { name: string; pending: number; active: number; total: number };
 
 type Props = {
   firstName: string;
@@ -42,6 +46,11 @@ type Props = {
   totalJournalDebit: number;
   totalJournalCredit: number;
   accountCount: number;
+  expenseByKategori: KategoriRow[];
+  expenseColors: string[];
+  incomeByClient: ClientRow[];
+  payoutByMember: MemberPayoutRow[];
+  taskByAssignee: TaskAssigneeRow[];
 };
 
 const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
@@ -90,6 +99,11 @@ export default function DashboardClient({
   totalJournalDebit,
   totalJournalCredit,
   accountCount,
+  expenseByKategori,
+  expenseColors,
+  incomeByClient,
+  payoutByMember,
+  taskByAssignee,
 }: Props) {
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
@@ -263,7 +277,15 @@ export default function DashboardClient({
 
       {/* Charts */}
       <div className="mb-8">
-        <DashboardCharts monthly={filteredMonthly} statusData={statusData} />
+        <DashboardCharts
+          monthly={filteredMonthly}
+          statusData={statusData}
+          expenseByKategori={expenseByKategori}
+          expenseColors={expenseColors}
+          incomeByClient={incomeByClient}
+          payoutByMember={payoutByMember}
+          taskByAssignee={taskByAssignee}
+        />
       </div>
 
       {/* Accounting Summary */}

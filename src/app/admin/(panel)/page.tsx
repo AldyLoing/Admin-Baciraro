@@ -19,6 +19,9 @@ export default async function AdminDashboardPage() {
     { data: payoutMembers },
     { data: journalData },
     { data: accounts },
+    { data: journalLines },
+    { data: tasks },
+    { data: payouts },
   ] = await Promise.all([
     supabase
       .from("projects")
@@ -34,7 +37,7 @@ export default async function AdminDashboardPage() {
       .select("project_id, member_id, contribution_percent, projects!inner(status, total_value)"),
     supabase
       .from("transactions")
-      .select("date, type, amount"),
+      .select("date, type, amount, project_id, description, source"),
     supabase
       .from("payout_members")
       .select("member_id, amount"),
@@ -44,6 +47,15 @@ export default async function AdminDashboardPage() {
     supabase
       .from("accounts")
       .select("code, name, type"),
+    supabase
+      .from("journal_entry_lines")
+      .select("account_code, debit, credit"),
+    supabase
+      .from("tasks")
+      .select("id, status, assigned_to, priority"),
+    supabase
+      .from("payouts")
+      .select("id, net_amount, status, kas_optional_amount"),
   ]);
 
   const allProjects = (projects ?? []) as any[];
@@ -95,6 +107,70 @@ export default async function AdminDashboardPage() {
 
   const firstName = admin.name?.split(" ")[0] || "Admin";
 
+  // --- Chart 1: Expense by Kategori ---
+  const EXPENSE_CATEGORIES: Record<string, number[]> = {
+    "Pembagian Pendapatan": [5101],
+    "Beban Jasa 3D": [5102],
+    "Beban Penjemputan DBS": [5103],
+    "Beban Konsumsi": [5104],
+    "Beban Pengolahan Nutrifood": [5105],
+    "Beban Lainnya": [5119],
+  };
+  const allLines = (journalLines ?? []) as any[];
+  const expenseByKategori = Object.entries(EXPENSE_CATEGORIES).map(([name, codes]) => {
+    const total = allLines
+      .filter((l: any) => codes.includes(l.account_code) && (l.debit > 0 || l.credit > 0))
+      .reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+    return { name, value: total };
+  }).filter((c) => c.value > 0);
+
+  const EXPENSE_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#10B981", "#EC4899", "#6B7280"];
+
+  // --- Chart 2: Income by Client ---
+  const incomeTxByProject = allTx.filter((t: any) => t.type === "income");
+  const clientIncomeMap = new Map<string, number>();
+  for (const tx of incomeTxByProject) {
+    const project = allProjects.find((p: any) => p.id === tx.project_id);
+    const client = project?.client_name || "Tanpa Klien";
+    clientIncomeMap.set(client, (clientIncomeMap.get(client) || 0) + Number(tx.amount));
+  }
+  const incomeByClient = Array.from(clientIncomeMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
+
+  // --- Chart 3: Payout by Member ---
+  const allPayoutMembers = (payoutMembers ?? []) as any[];
+  const memberPayoutMap = new Map<number, { name: string; amount: number }>();
+  for (const pm of allPayoutMembers) {
+    const member = (members ?? []).find((m: any) => m.id === pm.member_id);
+    const name = member?.name || "Unknown";
+    const curr = memberPayoutMap.get(pm.member_id) || { name, amount: 0 };
+    curr.amount += Number(pm.amount) || 0;
+    memberPayoutMap.set(pm.member_id, curr);
+  }
+  const payoutByMember = Array.from(memberPayoutMap.values())
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
+
+  // --- Chart 4: Task by Assignee ---
+  const allTasks = (tasks ?? []) as any[];
+  const activeTasks = allTasks.filter((t: any) => t.status === "pending" || t.status === "active");
+  const taskByAssigneeMap = new Map<number, { name: string; pending: number; active: number }>();
+  for (const t of activeTasks) {
+    if (!t.assigned_to) continue;
+    const member = (members ?? []).find((m: any) => m.id === t.assigned_to);
+    const name = member?.name || "Unknown";
+    const curr = taskByAssigneeMap.get(t.assigned_to) || { name, pending: 0, active: 0 };
+    if (t.status === "pending") curr.pending++;
+    else curr.active++;
+    taskByAssigneeMap.set(t.assigned_to, curr);
+  }
+  const taskByAssignee = Array.from(taskByAssigneeMap.values())
+    .map((m) => ({ ...m, total: m.pending + m.active }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
   return (
     <DashboardClient
       firstName={firstName}
@@ -111,6 +187,11 @@ export default async function AdminDashboardPage() {
       totalJournalDebit={totalJournalDebit}
       totalJournalCredit={totalJournalCredit}
       accountCount={accountList.length}
+      expenseByKategori={expenseByKategori}
+      expenseColors={EXPENSE_COLORS}
+      incomeByClient={incomeByClient}
+      payoutByMember={payoutByMember}
+      taskByAssignee={taskByAssignee}
     />
   );
 }
