@@ -39,7 +39,7 @@ const tooltipStyle = {
   color: "#fafafa",
 };
 
-function ExpensePieChart({ data, colors }: { data: KategoriRow[]; colors: string[] }) {
+function ExpenseList({ data, colors }: { data: KategoriRow[]; colors: string[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) {
     return (
@@ -54,32 +54,20 @@ function ExpensePieChart({ data, colors }: { data: KategoriRow[]; colors: string
   return (
     <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
       <h2 className="text-lg font-semibold text-white mb-4">Expense by Kategori</h2>
-      <div className="flex items-center gap-6">
-        <ResponsiveContainer width="50%" height={260}>
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} formatter={(value) => [formatRupiah(Number(value)), ""]} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="flex-1 space-y-2">
-          {data.map((d, i) => (
-            <div key={d.name} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colors[i % colors.length] }} />
-                <span className="text-white/60 truncate">{d.name}</span>
-              </div>
-              <span className="font-semibold text-white shrink-0 ml-2">{formatRupiah(d.value)}</span>
+      <div className="max-h-[260px] overflow-y-auto pr-1 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
+        {data.map((d, i) => (
+          <div key={d.name} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colors[i % colors.length] }} />
+              <span className="text-sm text-white/80">{d.name}</span>
             </div>
-          ))}
-          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-sm font-semibold">
-            <span className="text-white/70">Total</span>
-            <span className="text-white">{formatRupiah(total)}</span>
+            <span className="text-sm font-semibold text-white shrink-0 ml-2">{formatRupiah(d.value)}</span>
           </div>
-        </div>
+        ))}
+      </div>
+      <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-sm font-semibold">
+        <span className="text-white/70">Total</span>
+        <span className="text-white">{formatRupiah(total)}</span>
       </div>
     </div>
   );
@@ -237,7 +225,7 @@ export default function DashboardCharts({
 
       {/* Row 2: Expense by Kategori + Income by Client */}
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
-        <ExpensePieChart data={expenseByKategori} colors={expenseColors} />
+        <ExpenseList data={expenseByKategori} colors={expenseColors} />
         <IncomeByClientChart data={incomeByClient} />
       </div>
 
