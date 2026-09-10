@@ -37,11 +37,12 @@ export function formatNumber(value: number | string | null | undefined): string 
 
 export const KAS_PERCENT = 10;
 
-export function calculateDistribution(totalValue: number, contributions: Array<{ percent: number }>) {
+export function calculateDistribution(totalValue: number, contributions: Array<{ percent: number }>, kasOptionalPercent: number = 0) {
     const total = Number(totalValue) || 0;
     const kasPercent = KAS_PERCENT;
     const kasAmount = (total * kasPercent) / 100;
-    const distributable = total - kasAmount;
+    const kasOptionalAmount = (total * (Number(kasOptionalPercent) || 0)) / 100;
+    const distributable = total - kasAmount - kasOptionalAmount;
     const totalPercent = contributions.reduce((sum, c) => sum + (Number(c.percent) || 0), 0);
 
     const memberShares = contributions.map((c) => ({
@@ -56,6 +57,8 @@ export function calculateDistribution(totalValue: number, contributions: Array<{
         total,
         kasPercent,
         kasAmount,
+        kasOptionalPercent: Number(kasOptionalPercent) || 0,
+        kasOptionalAmount,
         distributable,
         totalPercent,
         memberShares,
