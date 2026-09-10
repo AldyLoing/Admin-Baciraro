@@ -2,20 +2,23 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import JournalClient from "./JournalClient";
 
+export const revalidate = 15;
+
 export default async function AdminJournalPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("*, journal_entry_lines(*)")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("code, name, type")
-    .order("code", { ascending: true });
+  const [{ data: entries }, { data: accounts }] = await Promise.all([
+    supabase
+      .from("journal_entries")
+      .select("id, date, description, reference, total_debit, total_credit, transaction_id, created_at, journal_entry_lines(id, account_code, debit, credit, description)")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("accounts")
+      .select("code, name, type")
+      .order("code", { ascending: true }),
+  ]);
 
   return (
     <JournalClient

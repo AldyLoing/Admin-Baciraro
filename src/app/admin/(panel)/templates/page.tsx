@@ -2,19 +2,22 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import TemplatesClient from "./TemplatesClient";
 
+export const revalidate = 60;
+
 export default async function AdminTemplatesPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: templates } = await supabase
-    .from("project_templates")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role, status")
-    .order("name");
+  const [{ data: templates }, { data: members }] = await Promise.all([
+    supabase
+      .from("project_templates")
+      .select("id, name, description, default_members, default_tasks, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .order("name"),
+  ]);
 
   const isAdmin = admin?.is_admin ?? false;
 

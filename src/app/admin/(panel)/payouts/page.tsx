@@ -2,6 +2,8 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import PayoutsClient from "./PayoutsClient";
 
+export const revalidate = 15;
+
 export default async function AdminPayoutsPage({
   searchParams,
 }: {
@@ -11,30 +13,34 @@ export default async function AdminPayoutsPage({
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: payouts } = await supabase
-    .from("payouts")
-    .select("*")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  const { data: payoutMembers } = await supabase
-    .from("payout_members")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, status, total_value, client_name")
-    .order("name");
-
-  const { data: projectMembers } = await supabase
-    .from("project_members")
-    .select("id, project_id, member_id, name, contribution_percent, amount, tugas");
-
-  const { data: allMembers } = await supabase
-    .from("team_members")
-    .select("id, name, role, status")
-    .order("name");
+  const [
+    { data: payouts },
+    { data: payoutMembers },
+    { data: projects },
+    { data: projectMembers },
+    { data: allMembers },
+  ] = await Promise.all([
+    supabase
+      .from("payouts")
+      .select("id, project_id, project_name, date, total_amount, orders_fee, net_amount, status, finalized_at, created_at")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payout_members")
+      .select("id, payout_id, member_id, name, contribution_percent, amount, tugas")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("projects")
+      .select("id, name, status, total_value, client_name")
+      .order("name"),
+    supabase
+      .from("project_members")
+      .select("id, project_id, member_id, name, contribution_percent, amount, tugas"),
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .order("name"),
+  ]);
 
   return (
     <PayoutsClient

@@ -3,42 +3,48 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import DashboardClient from "./DashboardClient";
 
+export const revalidate = 30;
+
 export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
   const supabase = createAdminClient();
 
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role, photo_url")
-    .order("name");
-
-  const { data: projectMembers } = await supabase
-    .from("project_members")
-    .select("project_id, member_id, contribution_percent, projects!inner(status, total_value)");
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("date, type, amount");
-
-  const { data: payoutMembers } = await supabase
-    .from("payout_members")
-    .select("member_id, amount");
-
-  const { data: journalData } = await supabase
-    .from("journal_entries")
-    .select("total_debit, total_credit");
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("code, name, type");
+  const [
+    { data: projects },
+    { data: members },
+    { data: projectMembers },
+    { data: transactions },
+    { data: payoutMembers },
+    { data: journalData },
+    { data: accounts },
+  ] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("id, name, client_name, total_value, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("team_members")
+      .select("id, name, role, photo_url")
+      .order("name"),
+    supabase
+      .from("project_members")
+      .select("project_id, member_id, contribution_percent, projects!inner(status, total_value)"),
+    supabase
+      .from("transactions")
+      .select("date, type, amount"),
+    supabase
+      .from("payout_members")
+      .select("member_id, amount"),
+    supabase
+      .from("journal_entries")
+      .select("total_debit, total_credit"),
+    supabase
+      .from("accounts")
+      .select("code, name, type"),
+  ]);
 
   const allProjects = (projects ?? []) as any[];
   const totalRevenue = allProjects.reduce((s: number, p: any) => s + (Number(p.total_value) || 0), 0);

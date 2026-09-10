@@ -2,13 +2,15 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import ProjectsClient from "./ProjectsClient";
 
+export const revalidate = 30;
+
 export default async function AdminProjectsPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("*")
+    .select("id, name, client_name, total_value, status, created_at")
     .order("created_at", { ascending: false });
 
   const isAdmin = admin?.is_admin ?? false;

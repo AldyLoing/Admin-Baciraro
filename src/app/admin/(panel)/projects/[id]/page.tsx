@@ -4,6 +4,8 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { formatRupiah, calculateDistribution, KAS_PERCENT } from "@/lib/admin/format";
 import ProjectDetailClient from "./ProjectDetailClient";
 
+export const revalidate = 30;
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -16,7 +18,7 @@ export default async function ProjectDetailPage({
 
   const { data: project } = await supabase
     .from("projects")
-    .select("*")
+    .select("id, name, client_name, description, total_value, status, created_at, completed_at")
     .eq("id", id)
     .single();
 
@@ -24,28 +26,27 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const { data: projectMembers } = await supabase
-    .from("project_members")
-    .select("id, member_id, name, contribution_percent, amount, tugas, team_members(id, name, role, photo_url)")
-    .eq("project_id", id)
-    .order("contribution_percent", { ascending: false });
-
-  const { data: allMembers } = await supabase
-    .from("team_members")
-    .select("id, name, role")
-    .order("name");
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("id, date, type, amount, source, description, reference, account_code")
-    .eq("project_id", id)
-    .order("date", { ascending: true });
-
-  const { data: payouts } = await supabase
-    .from("payouts")
-    .select("id, date, total_amount, orders_fee, net_amount, status, finalized_at")
-    .eq("project_id", id)
-    .order("date", { ascending: false });
+  const [{ data: projectMembers }, { data: allMembers }, { data: transactions }, { data: payouts }] = await Promise.all([
+    supabase
+      .from("project_members")
+      .select("id, member_id, name, contribution_percent, amount, tugas, team_members(id, name, role, photo_url)")
+      .eq("project_id", id)
+      .order("contribution_percent", { ascending: false }),
+    supabase
+      .from("team_members")
+      .select("id, name, role")
+      .order("name"),
+    supabase
+      .from("transactions")
+      .select("id, date, type, amount, source, description, reference, account_code")
+      .eq("project_id", id)
+      .order("date", { ascending: true }),
+    supabase
+      .from("payouts")
+      .select("id, date, total_amount, orders_fee, net_amount, status, finalized_at")
+      .eq("project_id", id)
+      .order("date", { ascending: false }),
+  ]);
 
   const contributions = (projectMembers ?? []).map((pm: any) => ({
     profileId: pm.member_id,

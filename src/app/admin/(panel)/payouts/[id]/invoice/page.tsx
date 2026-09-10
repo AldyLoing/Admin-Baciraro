@@ -3,6 +3,8 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import InvoicePrint from "@/app/admin/(panel)/payouts/InvoicePrint";
 
+export const revalidate = 0;
+
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
@@ -10,25 +12,35 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = createAdminClient();
 
-  const { data: payout } = await supabase
-    .from("payouts")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [{ data: payout }, { data: members }] = await Promise.all([
+    supabase
+      .from("payouts")
+      .select("id, project_id, project_name, date, total_amount, orders_fee, kas_optional_amount, kas_optional_percent, net_amount, status, finalized_at, created_at")
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("payout_members")
+      .select("name, contribution_percent, amount, tugas")
+      .eq("payout_id", id)
+      .order("contribution_percent", { ascending: false }),
+  ]);
 
   if (!payout) redirect("/admin/payouts");
 
-  const { data: members } = await supabase
-    .from("payout_members")
-    .select("name, contribution_percent, amount, tugas")
-    .eq("payout_id", id)
-    .order("contribution_percent", { ascending: false });
-
-  const { data: journalEntry } = await supabase
-    .from("journal_entries")
-    .select("id, date, description, reference, total_debit, total_credit, journal_entry_lines(account_code, debit, credit)")
-    .eq("transaction_id", (await supabase.from("transactions").select("id").like("source", `Payout ${payout.project_name}%`).limit(1)).data?.[0]?.id ?? -1)
+  const { data: txRow } = await supabase
+    .from("transactions")
+    .select("id")
+    .like("source", `Payout ${payout.project_name}%`)
+    .limit(1)
     .single();
+
+  const { data: journalEntry } = txRow
+    ? await supabase
+        .from("journal_entries")
+        .select("id, date, description, reference, total_debit, total_credit, journal_entry_lines(account_code, debit, credit)")
+        .eq("transaction_id", txRow.id)
+        .single()
+    : { data: null };
 
   return (
     <>

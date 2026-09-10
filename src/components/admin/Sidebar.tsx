@@ -170,11 +170,16 @@ export default function Sidebar({ name, role, isAdmin, avatarUrl }: SidebarProps
   }, [pathname]);
 
   useEffect(() => {
-    fetch("/api/admin/notifications")
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) setUnreadCount(d.unread_count ?? 0); })
-      .catch(() => {});
-  }, [pathname]);
+    const fetchNotif = () => {
+      fetch("/api/admin/notifications")
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setUnreadCount(d.unread_count ?? 0); })
+        .catch(() => {});
+    };
+    fetchNotif();
+    const timer = setInterval(fetchNotif, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <>

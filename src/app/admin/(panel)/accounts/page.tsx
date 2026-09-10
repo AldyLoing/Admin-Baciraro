@@ -2,13 +2,15 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import AccountsClient from "./AccountsClient";
 
+export const revalidate = 60;
+
 export default async function AdminAccountsPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
   const { data: accounts } = await supabase
     .from("accounts")
-    .select("*")
+    .select("id, code, name, type, parent_code, is_active, created_at")
     .order("code", { ascending: true });
 
   return (

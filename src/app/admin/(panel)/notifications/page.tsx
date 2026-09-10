@@ -2,6 +2,8 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import NotificationsClient from "./NotificationsClient";
 
+export const revalidate = 15;
+
 export default async function AdminNotificationsPage() {
   const admin = await requireAdmin();
   if (!admin) return null;
@@ -10,7 +12,7 @@ export default async function AdminNotificationsPage() {
 
   const { data: notifications } = await supabase
     .from("notifications")
-    .select("*")
+    .select("id, user_id, type, message, link, is_read, created_at")
     .eq("user_id", admin.id)
     .order("created_at", { ascending: false })
     .limit(100);

@@ -2,33 +2,34 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import MeetingsClient from "./MeetingsClient";
 
+export const revalidate = 30;
+
 export default async function AdminMeetingsPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: notes } = await supabase
-    .from("meeting_notes")
-    .select("*")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  const { data: attendees } = await supabase
-    .from("meeting_note_attendees")
-    .select("*");
-  const { data: actionItems } = await supabase
-    .from("action_items")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role, status")
-    .order("name");
-
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, status")
-    .order("name");
+  const [{ data: notes }, { data: attendees }, { data: actionItems }, { data: members }, { data: projects }] = await Promise.all([
+    supabase
+      .from("meeting_notes")
+      .select("id, title, date, agenda, notes, project_id, created_at")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("meeting_note_attendees")
+      .select("id, meeting_note_id, member_id"),
+    supabase
+      .from("action_items")
+      .select("id, meeting_note_id, task, assigned_to, due_date, status")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .order("name"),
+    supabase
+      .from("projects")
+      .select("id, name, status")
+      .order("name"),
+  ]);
 
   return (
     <MeetingsClient

@@ -2,20 +2,23 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import BookkeepingClient from "./BookkeepingClient";
 
+export const revalidate = 30;
+
 export default async function AdminBookkeepingPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("date, description, reference, total_debit, total_credit, journal_entry_lines(account_code, debit, credit)")
-    .order("date", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("code, name, type")
-    .order("code", { ascending: true });
+  const [{ data: entries }, { data: accounts }] = await Promise.all([
+    supabase
+      .from("journal_entries")
+      .select("date, description, reference, total_debit, total_credit, journal_entry_lines(account_code, debit, credit)")
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("accounts")
+      .select("code, name, type")
+      .order("code", { ascending: true }),
+  ]);
 
   return (
     <BookkeepingClient

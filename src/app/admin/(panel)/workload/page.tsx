@@ -2,25 +2,27 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import WorkloadClient from "./WorkloadClient";
 
+export const revalidate = 30;
+
 export default async function AdminWorkloadPage() {
   const admin = await requireAdmin();
   if (!admin) return null;
   const supabase = createAdminClient();
 
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role, status")
-    .eq("status", "active")
-    .order("name");
-
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, status, assigned_to")
-    .in("status", ["pending", "active"]);
-
-  const { data: projectMembers } = await supabase
-    .from("project_members")
-    .select("member_id, contribution_percent");
+  const [{ data: members }, { data: tasks }, { data: projectMembers }] = await Promise.all([
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .eq("status", "active")
+      .order("name"),
+    supabase
+      .from("tasks")
+      .select("id, status, assigned_to")
+      .in("status", ["pending", "active"]),
+    supabase
+      .from("project_members")
+      .select("member_id, contribution_percent"),
+  ]);
 
   return (
     <WorkloadClient

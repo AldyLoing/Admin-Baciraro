@@ -8,15 +8,17 @@ export default async function NewProjectPage() {
   if (!admin) redirect("/admin/projects");
 
   const supabase = createAdminClient();
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role")
-    .order("name");
 
-  const { data: templates } = await supabase
-    .from("project_templates")
-    .select("id, name, description, default_members, default_tasks")
-    .order("name");
+  const [{ data: members }, { data: templates }] = await Promise.all([
+    supabase
+      .from("team_members")
+      .select("id, name, role")
+      .order("name"),
+    supabase
+      .from("project_templates")
+      .select("id, name, description, default_members, default_tasks")
+      .order("name"),
+  ]);
 
   return (
     <div className="max-w-3xl mx-auto">

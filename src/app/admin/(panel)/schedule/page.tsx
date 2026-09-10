@@ -3,26 +3,28 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { isGoogleConfigured, getStoredToken } from "@/lib/admin/gcal";
 import ScheduleClient from "./ScheduleClient";
 
+export const revalidate = 30;
+
 export default async function AdminSchedulePage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select(
-      "id, title, description, due_date, priority, status, project_id, assigned_to, gcal_event_id, recurrence_rule, projects(name, status), team_members(name)"
-    )
-    .order("due_date", { ascending: true, nullsFirst: false });
-
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, status")
-    .order("name");
-
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, name, role, status")
-    .order("name");
+  const [{ data: tasks }, { data: projects }, { data: members }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select(
+        "id, title, description, due_date, priority, status, project_id, assigned_to, gcal_event_id, recurrence_rule, projects(name, status), team_members(name)"
+      )
+      .order("due_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("projects")
+      .select("id, name, status")
+      .order("name"),
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .order("name"),
+  ]);
 
   const icsConfigured = !!process.env.GOOGLE_CALENDAR_ICS_URL;
   const oauthConfigured = isGoogleConfigured();

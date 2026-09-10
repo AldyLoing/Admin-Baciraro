@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -18,8 +19,9 @@ export type AdminUser = {
  * Guard untuk panel admin (server components & API routes).
  * Baca cookie JWT "token", verify, lalu cek team_members.is_admin.
  * Return user admin atau null (tidak login / bukan admin / nonaktif).
+ * Wrapped with React.cache() to deduplicate within a single request.
  */
-export async function requireAdmin(): Promise<AdminUser | null> {
+export const requireAdmin = cache(async function (): Promise<AdminUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   if (!token) return null;
@@ -38,4 +40,4 @@ export async function requireAdmin(): Promise<AdminUser | null> {
   } catch {
     return null;
   }
-}
+});

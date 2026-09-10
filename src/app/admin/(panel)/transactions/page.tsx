@@ -2,25 +2,27 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import TransactionsClient from "./TransactionsClient";
 
+export const revalidate = 15;
+
 export default async function AdminTransactionsPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("*")
-    .order("date", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, status")
-    .order("name");
-
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("code, name, type")
-    .order("code", { ascending: true });
+  const [{ data: transactions }, { data: projects }, { data: accounts }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("id, date, type, amount, source, description, reference, project_id, account_code, created_by, created_at")
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("projects")
+      .select("id, name, status")
+      .order("name"),
+    supabase
+      .from("accounts")
+      .select("code, name, type")
+      .order("code", { ascending: true }),
+  ]);
 
   return (
     <TransactionsClient
