@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah, formatDate } from "@/lib/admin/format";
+import SearchInput from "@/components/ui/SearchInput";
+import Pagination from "@/components/ui/Pagination";
 
 type Transaction = {
   id: string;
@@ -13,14 +15,17 @@ type Transaction = {
   description: string;
   reference: string;
   project_id: string | null;
+  account_code: number | null;
   created_at: string;
 };
 
 type Project = { id: string; name: string; status: string };
+type AccountInfo = { code: number; name: string; type: string };
 
 type Props = {
   transactions: Transaction[];
   projects: Project[];
+  accounts: AccountInfo[];
   isAdmin: boolean;
 };
 
@@ -31,11 +36,16 @@ const inputCls =
 const selectCls =
   "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
 
-export default function TransactionsClient({ transactions, projects, isAdmin }: Props) {
+const PER_PAGE = 15;
+
+export default function TransactionsClient({ transactions, projects, accounts, isAdmin }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState(transactions);
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
+  const [accountFilter, setAccountFilter] = useState<string>("all");
   const [month, setMonth] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -45,6 +55,7 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
     source: "",
     description: "",
     project_id: "",
+    account_code: "4101",
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -52,6 +63,8 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
 
   function showError(msg: string) { setError(msg); setSuccess(null); }
   function showSuccess(msg: string) { setSuccess(msg); setError(null); }
+
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.code, a])), [accounts]);
 
   const months = useMemo(() => {
     const set = new Set<string>();
@@ -73,11 +86,27 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
     return out;
   }, [rows]);
 
-  const filtered = withBalance.filter((t) => {
-    if (filter !== "all" && t.type !== filter) return false;
-    if (month !== "all" && t.date.slice(0, 7) !== month) return false;
-    return true;
-  }).slice().reverse();
+  const filtered = useMemo(() => {
+    return withBalance.filter((t) => {
+      if (filter !== "all" && t.type !== filter) return false;
+      if (month !== "all" && t.date.slice(0, 7) !== month) return false;
+      if (accountFilter !== "all" && String(t.account_code) !== accountFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          t.source.toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q) ||
+          t.reference.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    }).slice().reverse();
+  }, [withBalance, filter, month, accountFilter, search]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PER_PAGE;
+    return filtered.slice(start, start + PER_PAGE);
+  }, [filtered, page]);
 
   const totalIncome = withBalance.reduce((s, t) => s + (t.type === "income" ? t.amount : 0), 0);
   const totalExpense = withBalance.reduce((s, t) => s + (t.type === "expense" ? t.amount : 0), 0);
@@ -92,6 +121,7 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
       source: "",
       description: "",
       project_id: "",
+      account_code: "4101",
     });
     setShowForm(true);
     setError(null);
@@ -107,6 +137,7 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
       source: t.source,
       description: t.description,
       project_id: t.project_id ?? "",
+      account_code: String(t.account_code ?? (t.type === "income" ? 4101 : 5119)),
     });
     setShowForm(true);
     setError(null);
@@ -134,6 +165,7 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
       source: form.source.trim(),
       description: form.description.trim(),
       project_id: form.project_id || null,
+      account_code: Number(form.account_code) || (form.type === "income" ? 4101 : 5119),
     };
 
     if (editingId) {
@@ -163,7 +195,7 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
       editingId
         ? prev.map((t) =>
             t.id === editingId
-              ? { ...t, date: form.date, type: form.type, amount, source: form.source.trim(), description: form.description.trim(), project_id: form.project_id || null }
+              ? { ...t, date: form.date, type: form.type, amount, source: form.source.trim(), description: form.description.trim(), project_id: form.project_id || null, account_code: Number(form.account_code) || (form.type === "income" ? 4101 : 5119) }
               : t
           )
         : prev
@@ -185,6 +217,30 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
     router.refresh();
   }
 
+  function exportCsv() {
+    const header = ["Tanggal", "Referensi", "Jenis", "Akun", "Sumber", "Deskripsi", "Jumlah", "Project"];
+    const lines = filtered.map((t) => [
+      t.date,
+      t.reference,
+      typeLabel[t.type],
+      t.account_code ? `${t.account_code} — ${accountMap.get(t.account_code)?.name ?? ""}` : "",
+      `"${t.source.replace(/"/g, '""')}"`,
+      `"${(t.description || "").replace(/"/g, '""')}"`,
+      t.type === "income" ? t.amount : -t.amount,
+      t.project_id ? projects.find((p) => p.id === t.project_id)?.name ?? "" : "",
+    ].join(","));
+    const csv = [header.join(","), ...lines].join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transaksi-baciraro.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
   return (
@@ -196,17 +252,28 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
             Pencatatan pemasukan dan pengeluaran dengan saldo berjalan.
           </p>
         </div>
-        {isAdmin && (
+        <div className="flex gap-2">
           <button
-            onClick={() => (showForm ? setShowForm(false) : openCreate())}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            onClick={exportCsv}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 text-white/60 text-sm font-medium hover:bg-white/5 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            {showForm ? "Tutup" : "Tambah Transaksi"}
+            CSV
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={() => (showForm ? setShowForm(false) : openCreate())}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {showForm ? "Tutup" : "Tambah Transaksi"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -240,7 +307,10 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-1">Jenis *</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "income" | "expense" })} className={selectCls}>
+              <select value={form.type} onChange={(e) => {
+                const newType = e.target.value as "income" | "expense";
+                setForm({ ...form, type: newType, account_code: newType === "income" ? "4101" : "5119" });
+              }} className={selectCls}>
                 <option value="income">Pemasukan</option>
                 <option value="expense">Pengeluaran</option>
               </select>
@@ -273,6 +343,20 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
               <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Catatan singkat..." className={inputCls} />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-1">Kategori Akun</label>
+              <select value={form.account_code} onChange={(e) => setForm({ ...form, account_code: e.target.value })} className={selectCls}>
+                {form.type === "income" ? (
+                  accounts.filter((a) => a.type === "revenue").map((a) => (
+                    <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+                  ))
+                ) : (
+                  accounts.filter((a) => a.type === "expense").map((a) => (
+                    <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
@@ -292,14 +376,14 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
         </form>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
         {(["all", "income", "expense"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
+          <button key={f} onClick={() => { setFilter(f); setPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === f ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white" : "bg-[#151515] border border-white/10 text-white/60 hover:bg-white/5"}`}>
             {f === "all" ? "Semua" : typeLabel[f]}
           </button>
         ))}
-        <select value={month} onChange={(e) => setMonth(e.target.value)}
+        <select value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-[#151515] border border-white/10 text-white/60 focus:border-[#D97A2B] outline-none transition">
           <option value="all">Semua bulan</option>
           {months.map((m) => (
@@ -308,6 +392,14 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
             </option>
           ))}
         </select>
+        <select value={accountFilter} onChange={(e) => { setAccountFilter(e.target.value); setPage(1); }}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#151515] border border-white/10 text-white/60 focus:border-[#D97A2B] outline-none transition">
+          <option value="all">Semua akun</option>
+          {accounts.map((a) => (
+            <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+          ))}
+        </select>
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Cari transaksi..." className="sm:flex-1 min-w-[200px]" />
       </div>
 
       {filtered.length === 0 ? (
@@ -316,62 +408,70 @@ export default function TransactionsClient({ transactions, projects, isAdmin }: 
           <p className="text-sm">Catat pemasukan dan pengeluaran kas Baciraro.</p>
         </div>
       ) : (
-        <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-white/50 border-b border-white/10">
-                <th className="px-4 py-3 font-medium">Tanggal</th>
-                <th className="px-4 py-3 font-medium">Referensi</th>
-                <th className="px-4 py-3 font-medium">Jenis</th>
-                <th className="px-4 py-3 font-medium">Keterangan</th>
-                <th className="px-4 py-3 font-medium text-right">Jumlah</th>
-                <th className="px-4 py-3 font-medium text-right">Saldo</th>
-                {isAdmin && <th className="px-4 py-3 font-medium"></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => {
-                const project = t.project_id ? projectMap.get(t.project_id) : null;
-                return (
-                  <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDate(t.date)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{t.reference || "-"}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${t.type === "income" ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"}`}>
-                        {typeLabel[t.type]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 min-w-[220px]">
-                      <p className="font-medium text-white">{t.source}</p>
-                      <p className="text-xs text-white/40 truncate">
-                        {t.description || "-"}
-                        {project ? ` · ${project.name}` : ""}
-                      </p>
-                    </td>
-                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${t.type === "income" ? "text-blue-400" : "text-red-400"}`}>
-                      {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-white/60 whitespace-nowrap">{formatRupiah(t.balance)}</td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <button onClick={() => openEdit(t)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Ubah">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button onClick={() => remove(t.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+        <>
+          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-white/50 border-b border-white/10">
+                  <th className="px-4 py-3 font-medium">Tanggal</th>
+                  <th className="px-4 py-3 font-medium">Referensi</th>
+                  <th className="px-4 py-3 font-medium">Jenis</th>
+                  <th className="px-4 py-3 font-medium">Keterangan</th>
+                  <th className="px-4 py-3 font-medium text-right">Jumlah</th>
+                  <th className="px-4 py-3 font-medium text-right">Saldo</th>
+                  {isAdmin && <th className="px-4 py-3 font-medium"></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map((t) => {
+                  const project = t.project_id ? projectMap.get(t.project_id) : null;
+                  return (
+                    <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
+                      <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDate(t.date)}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{t.reference || "-"}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${t.type === "income" ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"}`}>
+                          {typeLabel[t.type]}
+                        </span>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-4 py-3 min-w-[220px]">
+                        <p className="font-medium text-white">{t.source}</p>
+                        <p className="text-xs text-white/40 truncate">
+                          {t.description || "-"}
+                          {project ? ` · ${project.name}` : ""}
+                        </p>
+                        {t.account_code && (
+                          <p className="text-[10px] text-white/30 mt-0.5">
+                            {t.account_code} — {accountMap.get(t.account_code)?.name ?? "Unknown"}
+                          </p>
+                        )}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${t.type === "income" ? "text-blue-400" : "text-red-400"}`}>
+                        {t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-white/60 whitespace-nowrap">{formatRupiah(t.balance)}</td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          <button onClick={() => openEdit(t)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Ubah">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => remove(t.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={page} totalItems={filtered.length} perPage={PER_PAGE} onPageChange={setPage} />
+        </>
       )}
     </>
   );

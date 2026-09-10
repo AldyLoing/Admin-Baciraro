@@ -28,6 +28,10 @@ export default async function AdminMembersPage() {
     .from("payouts")
     .select("net_amount, status");
 
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select("id, date, type, amount, source, created_by, reference");
+
   const allProjects = new Map<string, { name: string; status: string; total_value: number }>();
   (projectMembers ?? []).forEach((pm: any) => {
     if (pm.projects) {
@@ -63,7 +67,19 @@ export default async function AdminMembersPage() {
       return sum + ((value * (100 - KAS_PERCENT)) / 100) * (percent / 100);
     }, 0);
 
-    return { ...member, projectCount, activeProjects, paidProjects, totalIncome, pendingIncome, rows };
+    return {
+      ...member,
+      projectCount,
+      activeProjects,
+      paidProjects,
+      totalIncome,
+      pendingIncome,
+      txCreated: (transactions ?? []).filter((t: any) => t.created_by === member.id).length,
+      txTotalAmount: (transactions ?? [])
+        .filter((t: any) => t.created_by === member.id)
+        .reduce((sum: number, t: any) => sum + Number(t.amount), 0),
+      rows,
+    };
   });
 
   const totalIncomeAll = stats.reduce((s, m) => s + m.totalIncome, 0);
@@ -145,7 +161,7 @@ export default async function AdminMembersPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <p className="text-lg font-bold text-white">{m.projectCount}</p>
                 <p className="text-xs text-white/50">Project</p>
@@ -157,6 +173,10 @@ export default async function AdminMembersPage() {
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <p className="text-lg font-bold text-emerald-400">{m.paidProjects}</p>
                 <p className="text-xs text-white/50">Dibayar</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3 text-center">
+                <p className="text-lg font-bold text-purple-400">{m.txCreated}</p>
+                <p className="text-xs text-white/50">Transaksi</p>
               </div>
             </div>
 
