@@ -107,24 +107,21 @@ export default async function AdminDashboardPage() {
 
   const firstName = admin.name?.split(" ")[0] || "Admin";
 
-  // --- Chart 1: Expense by Kategori ---
-  const EXPENSE_CATEGORIES: Record<string, number[]> = {
-    "Pembagian Pendapatan": [5101],
-    "Beban Jasa 3D": [5102],
-    "Beban Penjemputan DBS": [5103],
-    "Beban Konsumsi": [5104],
-    "Beban Pengolahan Nutrifood": [5105],
-    "Beban Lainnya": [5119],
-  };
+  // --- Chart 1: Expense by Kategori (dynamic dari DB) ---
   const allLines = (journalLines ?? []) as any[];
-  const expenseByKategori = Object.entries(EXPENSE_CATEGORIES).map(([name, codes]) => {
-    const total = allLines
-      .filter((l: any) => codes.includes(l.account_code) && (l.debit > 0 || l.credit > 0))
-      .reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
-    return { name, value: total };
-  }).filter((c) => c.value > 0);
+  const lineByAccount = new Map<number, number>();
+  for (const line of allLines) {
+    if (line.debit > 0) {
+      lineByAccount.set(line.account_code, (lineByAccount.get(line.account_code) || 0) + Number(line.debit));
+    }
+  }
+  const expenseAccounts = accountList.filter((a: any) => a.type === "expense");
+  const expenseByKategori = expenseAccounts
+    .map((a: any) => ({ name: a.name, value: lineByAccount.get(a.code) || 0 }))
+    .filter((c) => c.value > 0)
+    .sort((a, b) => b.value - a.value);
 
-  const EXPENSE_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#10B981", "#EC4899", "#6B7280"];
+  const EXPENSE_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#10B981", "#EC4899", "#6366F1"];
 
   // --- Chart 2: Income by Client ---
   const incomeTxByProject = allTx.filter((t: any) => t.type === "income");
