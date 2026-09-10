@@ -1,3 +1,4 @@
+
 # Baciraro Admin Panel
 
 Panel manajemen internal untuk organisasi Baciraro — dibangun dengan **Next.js 16 + TypeScript + Supabase**.
