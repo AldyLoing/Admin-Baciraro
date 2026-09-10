@@ -69,13 +69,14 @@ export default function PayoutsClient({
   const [filter, setFilter] = useState<"all" | "pending" | "processing" | "paid">("all");
   const [showForm, setShowForm] = useState(Boolean(preselectProjectId));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [form, setForm] = useState({ project_id: preselectProjectId ?? "", date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState({ project_id: preselectProjectId ?? "", date: new Date().toISOString().slice(0, 10), total_amount: "" });
   const [formMembers, setFormMembers] = useState<FormMember[]>([]);
   const [newMemberId, setNewMemberId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [finalizeDrafts, setFinalizeDrafts] = useState<Record<string, string>>({});
+  const [kasOptionalDrafts, setKasOptionalDrafts] = useState<Record<string, string>>({});
   const [finalizingId, setFinalizingId] = useState<string | null>(null);
 
   function showError(msg: string) { setError(msg); setSuccess(null); }
@@ -153,8 +154,10 @@ export default function PayoutsClient({
   const preview = useMemo(() => {
     if (!selectedProject) return null;
     const contribs = formMembers.map((fm) => ({ percent: fm.contribution_percent }));
-    return calculateDistribution(selectedProject.total_value, contribs);
-  }, [selectedProject, formMembers]);
+    const overrideTotal = form.total_amount !== "" ? Number(form.total_amount) : 0;
+    const total = overrideTotal > 0 ? overrideTotal : selectedProject.total_value;
+    return calculateDistribution(total, contribs);
+  }, [selectedProject, formMembers, form.total_amount]);
 
   const eligibleProjects = projects.filter((p) => p.status === "completed" || p.status === "paid");
 
@@ -177,6 +180,7 @@ export default function PayoutsClient({
       body: JSON.stringify({
         project_id: form.project_id,
         date: form.date,
+        total_amount: form.total_amount === "" ? 0 : Number(form.total_amount),
         members: formMembers.map((fm) => ({
           member_id: fm.member_id,
           name: fm.member_name,
@@ -194,7 +198,7 @@ export default function PayoutsClient({
     }
 
     setShowForm(false);
-    setForm({ project_id: "", date: new Date().toISOString().slice(0, 10) });
+    setForm({ project_id: "", date: new Date().toISOString().slice(0, 10), total_amount: "" });
     setFormMembers([]);
     showSuccess(data.message ?? `Payout untuk "${selectedProject!.name}" dibuat.`);
     router.refresh();
@@ -241,12 +245,13 @@ export default function PayoutsClient({
       showError("Isi total riil pendapatan dulu.");
       return;
     }
+    const kasOpt = Number(kasOptionalDrafts[p.id]) || 0;
     setFinalizingId(p.id);
     setError(null);
     const res = await fetch("/api/admin/payouts/finalize", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: p.id, actual_total: actual }),
+      body: JSON.stringify({ id: p.id, actual_total: actual, kas_optional_percent: kasOpt }),
     });
     const data = await res.json();
     setFinalizingId(null);
@@ -409,6 +414,19 @@ export default function PayoutsClient({
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-white/70 mb-1">
+              Nilai Total (Rp) <span className="text-white/40">· opsional</span>
+            </label>
+            <input type="number" min="0" value={form.total_amount}
+              onChange={(e) => setForm({ ...form, total_amount: e.target.value })}
+              placeholder="Kosongkan jika nominal belum diketahui"
+              className={inputCls} />
+            <p className="text-xs text-white/30 mt-1">
+              Jika diisi, payout langsung terhitung dan tidak perlu input nominal lagi. Kosongkan jika nominal masih menunggu.
+            </p>
+          </div>
+
           {selectedProject && (
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -472,10 +490,10 @@ export default function PayoutsClient({
 
           {preview && (
             <div className="bg-white/5 rounded-xl p-4">
-              <p className="text-sm font-semibold text-white mb-2">Ringkasan (estimasi dari nilai project — nominal riil diisi setelah payout dibuat)</p>
+              <p className="text-sm font-semibold text-white mb-2">Ringkasan (estimasi dari nilai project)</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-white/50">Nilai Project</p>
+                  <p className="text-xs text-white/50">{form.total_amount !== "" && Number(form.total_amount) > 0 ? "Total Riil" : "Nilai Project"}</p>
                   <p className="font-semibold text-white">{formatRupiah(preview.total)}</p>
                 </div>
                 <div>
@@ -487,6 +505,11 @@ export default function PayoutsClient({
                   <p className="font-semibold text-emerald-400">{formatRupiah(preview.distributable)}</p>
                 </div>
               </div>
+              {form.total_amount === "" || Number(form.total_amount) === 0 ? (
+                <p className="text-xs text-white/30 mt-2">* Nominal belum diisi. Admin perlu mengisi total riil di halaman payout setelah dibuat.</p>
+              ) : (
+                <p className="text-xs text-white/30 mt-2">* Payout akan langsung terhitung. Fee Kas Baciraro tambahan (opsional) bisa diatur saat finalisasi ulang.</p>
+              )}
             </div>
           )}
 
@@ -576,6 +599,14 @@ export default function PayoutsClient({
                         </svg>
                       </button>
                     )}
+                    {p.finalized_at && (
+                      <a href={`/admin/payouts/${p.id}/invoice`} target="_blank" rel="noopener noreferrer"
+                        className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" title="Invoice">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </a>
+                    )}
                   </div>
                 </div>
                 {isOpen && (
@@ -596,6 +627,20 @@ export default function PayoutsClient({
                             placeholder="Total riil (Rp)"
                             className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition"
                           />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-white/40 whitespace-nowrap">Kas Tambahan</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={kasOptionalDrafts[p.id] ?? ""}
+                              onChange={(e) => setKasOptionalDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                              placeholder="%"
+                              className="w-20 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-right placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition"
+                            />
+                            <span className="text-xs text-white/40">%</span>
+                          </div>
                           <button
                             onClick={() => finalizePayout(p)}
                             disabled={finalizingId === p.id}
@@ -608,13 +653,20 @@ export default function PayoutsClient({
                           const raw = finalizeDrafts[p.id];
                           const actual = Number(raw);
                           if (raw === undefined || raw === "" || isNaN(actual) || actual < 0) return null;
-                          const dist = calculateDistribution(actual, ms.map((m) => ({ percent: m.contribution_percent })));
+                          const kasOpt = Number(kasOptionalDrafts[p.id]) || 0;
+                          const dist = calculateDistribution(actual, ms.map((m) => ({ percent: m.contribution_percent })), kasOpt);
                           return (
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
                               <div>
                                 <p className="text-xs text-white/50">Fee Baciraro (10%)</p>
                                 <p className="font-semibold text-[#E9A64E]">{formatRupiah(dist.kasAmount)}</p>
                               </div>
+                              {kasOpt > 0 && (
+                                <div>
+                                  <p className="text-xs text-white/50">Kas Baciraro Tambahan ({kasOpt}%)</p>
+                                  <p className="font-semibold text-[#E9A64E]">{formatRupiah(dist.kasOptionalAmount)}</p>
+                                </div>
+                              )}
                               <div>
                                 <p className="text-xs text-white/50">Net untuk Member</p>
                                 <p className="font-semibold text-emerald-400">{formatRupiah(dist.distributable)}</p>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { formatRupiah, formatDate } from "@/lib/admin/format";
 import SearchInput from "@/components/ui/SearchInput";
 import Pagination from "@/components/ui/Pagination";
@@ -217,28 +218,34 @@ export default function TransactionsClient({ transactions, projects, accounts, i
     router.refresh();
   }
 
-  function exportCsv() {
+  function exportExcel() {
     const header = ["Tanggal", "Referensi", "Jenis", "Akun", "Sumber", "Deskripsi", "Jumlah", "Project"];
-    const lines = filtered.map((t) => [
+    const data = filtered.map((t) => [
       t.date,
       t.reference,
       typeLabel[t.type],
       t.account_code ? `${t.account_code} — ${accountMap.get(t.account_code)?.name ?? ""}` : "",
-      `"${t.source.replace(/"/g, '""')}"`,
-      `"${(t.description || "").replace(/"/g, '""')}"`,
+      t.source,
+      t.description || "",
       t.type === "income" ? t.amount : -t.amount,
       t.project_id ? projects.find((p) => p.id === t.project_id)?.name ?? "" : "",
-    ].join(","));
-    const csv = [header.join(","), ...lines].join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaksi-baciraro.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    ws["!cols"] = [
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 16 },
+      { wch: 25 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transaksi");
+    XLSX.writeFile(wb, "transaksi-baciraro.xlsx");
   }
 
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
@@ -254,13 +261,13 @@ export default function TransactionsClient({ transactions, projects, accounts, i
         </div>
         <div className="flex gap-2">
           <button
-            onClick={exportCsv}
+            onClick={exportExcel}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 text-white/60 text-sm font-medium hover:bg-white/5 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            CSV
+            Export Excel
           </button>
           {isAdmin && (
             <button

@@ -10,7 +10,7 @@ export default async function AdminSchedulePage() {
   const { data: tasks } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, due_date, priority, status, project_id, assigned_to, gcal_event_id, projects(name, status), team_members(name)"
+      "id, title, description, due_date, priority, status, project_id, assigned_to, gcal_event_id, recurrence_rule, projects(name, status), team_members(name)"
     )
     .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -54,6 +54,7 @@ export default async function AdminSchedulePage() {
         project_status: t.projects?.status ?? null,
         assigned_name: t.team_members?.name ?? null,
         gcal_event_id: t.gcal_event_id ?? null,
+        recurrence_rule: t.recurrence_rule ?? null,
       }))}
       projects={(projects ?? []).map((p) => ({ id: p.id, name: p.name, status: p.status }))}
       members={(members ?? []).map((m) => ({

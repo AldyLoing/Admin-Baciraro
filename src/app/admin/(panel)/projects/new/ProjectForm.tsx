@@ -23,7 +23,15 @@ const inputCls =
 const selectCls =
   "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition";
 
-export default function ProjectForm({ members }: { members: Member[] }) {
+type Template = {
+  id: string;
+  name: string;
+  description: string | null;
+  default_members: Array<{ member_id: number | null; name: string; contribution_percent: number }>;
+  default_tasks: Array<{ title: string; priority: string; days_offset: number }>;
+};
+
+export default function ProjectForm({ members, templates = [] }: { members: Member[]; templates?: Template[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [clientName, setClientName] = useState("");
@@ -140,6 +148,43 @@ export default function ProjectForm({ members }: { members: Member[] }) {
         <h1 className="text-2xl font-bold text-white">Tambah Project Baru</h1>
         <p className="text-white/50 mt-1">Tentukan nilai project dan persentase kontribusi kontributor.</p>
       </div>
+
+      {templates.length > 0 && (
+        <div className="bg-[#151515] rounded-xl border border-white/10 p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-[#E9A64E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm text-white/70">Gunakan Template:</span>
+            <div className="flex flex-wrap gap-2">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    if (t.default_members?.length) {
+                      const newRows = t.default_members.map((m) => ({
+                        type: (m.member_id ? "member" : "external") as "member" | "external",
+                        member_id: m.member_id ? String(m.member_id) : "",
+                        name: m.name || "",
+                        percent: String(m.contribution_percent),
+                        amount: "",
+                        tugas: "",
+                      }));
+                      setRows(newRows);
+                    }
+                    if (t.description) setDescription(t.description);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-[#D97A2B]/30 text-[#E9A64E] text-xs font-medium hover:bg-[#D97A2B]/10 transition"
+                  title={t.description ?? t.name}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-[#151515] rounded-xl border border-white/10 p-6 space-y-4">

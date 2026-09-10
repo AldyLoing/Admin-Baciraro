@@ -22,7 +22,7 @@ export default async function AdminPanelLayout({
     <div className="min-h-screen bg-[#0b0b0b] flex">
       <Sidebar name={name} role={role} isAdmin={isAdmin} avatarUrl={avatarUrl} />
       <main className="flex-1 min-w-0">
-        <div className="p-6 md:p-8 lg:p-10">{children}</div>
+        <div className="p-4 md:p-6 lg:p-10 pt-14 md:pt-6">{children}</div>
       </main>
     </div>
   );

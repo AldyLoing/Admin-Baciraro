@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { logActivity } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -57,6 +58,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Gagal menyimpan peserta: " + aerr.message }, { status: 400 });
     }
   }
+
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: id ? "update" : "create", entityType: "meeting",
+    entityId: noteId, entityName: String(title).trim(),
+  });
 
   return NextResponse.json({ ok: true });
 }

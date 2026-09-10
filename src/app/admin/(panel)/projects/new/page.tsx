@@ -13,9 +13,14 @@ export default async function NewProjectPage() {
     .select("id, name, role")
     .order("name");
 
+  const { data: templates } = await supabase
+    .from("project_templates")
+    .select("id, name, description, default_members, default_tasks")
+    .order("name");
+
   return (
     <div className="max-w-3xl mx-auto">
-      <ProjectForm members={members ?? []} />
+      <ProjectForm members={members ?? []} templates={templates ?? []} />
     </div>
   );
 }

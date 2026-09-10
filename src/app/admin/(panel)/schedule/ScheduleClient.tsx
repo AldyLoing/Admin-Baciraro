@@ -19,6 +19,7 @@ type Task = {
   project_status: string | null;
   assigned_name: string | null;
   gcal_event_id: string | null;
+  recurrence_rule: string | null;
 };
 
 type Project = { id: string; name: string; status: string };
@@ -56,6 +57,7 @@ const emptyForm = {
   priority: "medium",
   project_id: "",
   assigned_to: "",
+  recurrence_rule: "",
 };
 
 const inputCls =
@@ -75,6 +77,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
@@ -124,7 +127,11 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
   function showError(msg: string) { setError(msg); setSuccess(null); }
   function showSuccess(msg: string) { setSuccess(msg); setError(null); }
 
-  const filtered = statusFilter === "all" ? tasks : tasks.filter((t) => t.status === statusFilter);
+  const filtered = statusFilter === "all"
+    ? tasks
+    : statusFilter === "recurring"
+      ? tasks.filter((t) => t.recurrence_rule)
+      : tasks.filter((t) => t.status === statusFilter);
 
   function openCreate() {
     setEditingId(null);
@@ -143,6 +150,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
       priority: t.priority,
       project_id: t.project_id ?? "",
       assigned_to: t.assigned_to ? String(t.assigned_to) : "",
+      recurrence_rule: t.recurrence_rule ?? "",
     });
     setShowForm(true);
     setError(null);
@@ -166,6 +174,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
         priority: form.priority,
         project_id: form.project_id || null,
         assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
+        recurrence_rule: form.recurrence_rule || null,
       }),
     });
     const data = await res.json();
@@ -252,6 +261,13 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
     });
     const data = await res.json();
     if (!res.ok || !data.ok) { showError("Gagal update status: " + (data.error ?? "unknown")); return; }
+    if (status === "completed" && t.recurrence_rule) {
+      await fetch("/api/admin/tasks/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: t.id }),
+      });
+    }
     router.refresh();
   }
 
@@ -347,6 +363,22 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
             </button>
           )}
           {isAdmin && (
+            <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
+              <button onClick={() => setViewMode("list")}
+                className={`px-3 py-2 text-sm font-medium transition ${viewMode === "list" ? "bg-[#D97A2B] text-white" : "text-white/50 hover:bg-white/5"}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <button onClick={() => setViewMode("kanban")}
+                className={`px-3 py-2 text-sm font-medium transition ${viewMode === "kanban" ? "bg-[#D97A2B] text-white" : "text-white/50 hover:bg-white/5"}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {isAdmin && (
             <button onClick={() => (showForm ? setShowForm(false) : openCreate())}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,6 +421,16 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
                 <option value="low">Rendah</option>
                 <option value="medium">Sedang</option>
                 <option value="high">Tinggi</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-1">Ulangi</label>
+              <select value={form.recurrence_rule} onChange={(e) => setForm({ ...form, recurrence_rule: e.target.value })} className={selectCls}>
+                <option value="">Tidak ada</option>
+                <option value="daily">Harian</option>
+                <option value="weekly">Mingguan</option>
+                <option value="biweekly">2 Mingguan</option>
+                <option value="monthly">Bulanan</option>
               </select>
             </div>
             <div>
@@ -439,8 +481,71 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
             {s === "all" ? "Semua" : s === "pending" ? "Menunggu" : s === "active" ? "Berjalan" : "Selesai"}
           </button>
         ))}
+        <button onClick={() => setStatusFilter(statusFilter === "recurring" ? "all" : "recurring")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            statusFilter === "recurring"
+              ? "bg-[#D97A2B] text-white"
+              : "border border-white/10 text-white/50 hover:bg-white/5"
+          }`}>
+          Berulang
+        </button>
       </div>
 
+      {viewMode === "kanban" ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(["pending", "active", "completed"] as const).map((col) => {
+            const colTasks = filtered.filter((t) => t.status === col);
+            return (
+              <div key={col} className="bg-[#111] rounded-xl border border-white/10 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`w-2.5 h-2.5 rounded-full ${col === "pending" ? "bg-gray-400" : col === "active" ? "bg-blue-400" : "bg-emerald-400"}`} />
+                  <h3 className="text-sm font-semibold text-white">
+                    {col === "pending" ? "Menunggu" : col === "active" ? "Berjalan" : "Selesai"}
+                  </h3>
+                  <span className="ml-auto text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                </div>
+                <div className="space-y-3 min-h-[120px]">
+                  {colTasks.length === 0 ? (
+                    <div className="text-center text-white/20 text-sm py-8 border border-dashed border-white/10 rounded-lg">
+                      Kosong
+                    </div>
+                  ) : colTasks.map((t) => {
+                    const assigned = t.assigned_to ? memberMap.get(t.assigned_to) : null;
+                    const project = t.project_id ? projectMap.get(t.project_id) : null;
+                    return (
+                      <div key={t.id} className="bg-[#1a1a1a] rounded-lg border border-white/10 p-3 hover:border-white/20 transition">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm font-medium ${t.status === "completed" ? "text-white/40 line-through" : "text-white"}`}>{t.title}</p>
+                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityColor[t.priority] ?? priorityColor.medium}`}>
+                            {t.priority === "high" ? "Hi" : t.priority === "low" ? "Lo" : "Me"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-white/40">
+                          {t.due_date && <span>📅 {formatDate(t.due_date)}</span>}
+                          {project && <span>📁 {project.name}</span>}
+                          {assigned && <span>👤 {assigned.name}</span>}
+                          {t.recurrence_rule && <span className="text-[#E9A64E]">🔁 {t.recurrence_rule === "daily" ? "Harian" : t.recurrence_rule === "weekly" ? "Mingguan" : t.recurrence_rule === "biweekly" ? "2 Mingguan" : "Bulanan"}</span>}
+                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mt-2 pt-2 border-t border-white/5">
+                            {col === "pending" && (
+                              <button onClick={() => setStatus(t, "active")} className="text-[11px] text-blue-400 hover:text-blue-300 transition">Mulai</button>
+                            )}
+                            {col === "active" && (
+                              <button onClick={() => setStatus(t, "completed")} className="text-[11px] text-emerald-400 hover:text-emerald-300 transition">Selesai</button>
+                            )}
+                            <button onClick={() => openEdit(t)} className="ml-auto text-[11px] text-white/30 hover:text-[#E9A64E] transition">Ubah</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="space-y-3">
           {filtered.length === 0 ? (
@@ -488,6 +593,11 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
                         {t.due_date && <span className="inline-flex items-center gap-1">📅 {formatDate(t.due_date)}</span>}
                         {project && <span className="inline-flex items-center gap-1">📁 {project.name}</span>}
                         {assigned && <span className="inline-flex items-center gap-1">👤 {assigned.name}</span>}
+                        {t.recurrence_rule && (
+                          <span className="inline-flex items-center gap-1 text-[#E9A64E]">
+                            🔁 {t.recurrence_rule === "daily" ? "Harian" : t.recurrence_rule === "weekly" ? "Mingguan" : t.recurrence_rule === "biweekly" ? "2 Mingguan" : "Bulanan"}
+                          </span>
+                        )}
                       </div>
                       {t.description && <p className="text-sm text-white/40 mt-1.5">{t.description}</p>}
                     </div>
@@ -560,6 +670,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
           </div>
         )}
       </div>
+      )}
     </>
   );
 }

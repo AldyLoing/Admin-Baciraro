@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Baciraro - Print A4</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #111;
+            border-bottom: 2px solid #C44A3A;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .controls h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #C44A3A, #D97A2B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .control-group input, .control-group select {
+            padding: 10px 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 14px;
+            width: 150px;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #C44A3A;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #C44A3A, #D97A2B);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(196, 74, 58, 0.4);
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .btn-print {
+            background: #22c55e;
+            color: #fff;
+        }
+
+        .btn-print:hover {
+            background: #16a34a;
+        }
+
+        .preview-container {
+            padding: 20px;
+        }
+
+        .preview-label {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .a4-page {
+            background: #fff;
+            width: 297mm;
+            height: 210mm;
+            margin: 0 auto;
+            padding: 10mm;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        .qr-grid {
+            display: grid;
+            gap: 3mm;
+            width: 100%;
+            height: 100%;
+        }
+
+        .qr-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            position: relative;
+        }
+
+        .qr-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+        }
+
+        .qr-wrapper canvas,
+        .qr-wrapper img {
+            width: 100% !important;
+            height: 100% !important;
+            image-rendering: pixelated;
+        }
+
+        .qr-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 22%;
+            height: 22%;
+            background: #000;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2%;
+        }
+
+        .qr-logo svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .qr-label {
+            font-size: 6pt;
+            color: #333;
+            text-align: center;
+            margin-top: 1mm;
+            font-weight: 500;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .controls {
+                display: none !important;
+            }
+
+            .preview-container {
+                padding: 0;
+            }
+
+            .a4-page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+
+            .qr-label {
+                font-size: 5pt;
+            }
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-left: auto;
+        }
+
+        .logo-svg {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h1>QR Code Baciraro - Print A4</h1>
+        <div class="controls-row">
+            <div class="control-group">
+                <label>Jumlah QR Code</label>
+                <input type="number" id="qrCount" value="72" min="1" max="200">
+            </div>
+            <div class="control-group">
+                <label>Target URL</label>
+                <input type="text" id="targetUrl" value="https://baciraro.net" style="width: 250px;">
+            </div>
+            <div class="control-group">
+                <label>Layout</label>
+                <select id="layoutMode">
+                    <option value="auto">Auto (Dense)</option>
+                    <option value="8x9">8 x 9 (72 QR)</option>
+                    <option value="9x10">9 x 10 (90 QR)</option>
+                    <option value="10x11">10 x 11 (110 QR)</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="generateQR()">Generate QR Code</button>
+            <button class="btn btn-print" onclick="window.print()">Print / Cetak</button>
+            <span class="stats" id="stats"></span>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Preview A4 Landscape (297mm x 210mm)</div>
+        <div class="a4-page" id="a4Page">
+            <div class="qr-grid" id="qrGrid"></div>
+        </div>
+    </div>
+
+    <svg id="logoTemplate" style="display: none;">
+        <defs>
+            <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+        <rect width="200" height="200" rx="30" ry="30" fill="#000"/>
+        <!-- House/Roof -->
+        <polygon points="100,25 170,75 30,75" fill="none" stroke="url(#greenGrad)" stroke-width="12" stroke-linejoin="round"/>
+        <!-- Recycle arrows -->
+        <g transform="translate(100,95)" fill="none" stroke="url(#greenGrad)" stroke-width="6" stroke-linecap="round">
+            <path d="M-15,-10 L0,-20 L15,-10"/>
+            <path d="M15,-10 L20,5 L10,15"/>
+            <path d="M10,15 L-10,15 L-20,5"/>
+            <path d="M-20,5 L-15,-10"/>
+            <polygon points="-18,-8 -12,-18 -8,-8" fill="url(#greenGrad)"/>
+            <polygon points="18,2 12,15 8,5" fill="url(#greenGrad)"/>
+            <polygon points="0,18 -8,8 8,8" fill="url(#greenGrad)"/>
+        </g>
+        <!-- BA -->
+        <text x="100" y="150" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="40" font-weight="900" fill="url(#greenGrad)">BA</text>
+        <!-- CIRARO -->
+        <text x="100" y="185" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="28" font-weight="900" fill="url(#greenGrad)">CIRARO</text>
+    </svg>
+
+    <script>
+        function getLogoSVG() {
+            return document.getElementById('logoTemplate').outerHTML;
+        }
+
+        function calculateGrid(count) {
+            const mode = document.getElementById('layoutMode').value;
+
+            if (mode === '8x9') return { cols: 8, rows: 9 };
+            if (mode === '9x10') return { cols: 9, rows: 10 };
+            if (mode === '10x11') return { cols: 10, rows: 11 };
+
+            // Auto dense
+            let bestCols = 8, bestRows = 9;
+            let bestTotal = 0;
+
+            for (let cols = 6; cols <= 12; cols++) {
+                const rows = Math.ceil(count / cols);
+                const total = cols * rows;
+                if (total >= count && (bestTotal === 0 || total < bestTotal)) {
+                    bestCols = cols;
+                    bestRows = rows;
+                    bestTotal = total;
+                }
+            }
+
+            return { cols: bestCols, rows: bestRows };
+        }
+
+        function generateQR() {
+            const count = parseInt(document.getElementById('qrCount').value) || 72;
+            const url = document.getElementById('targetUrl').value || 'https://baciraro.net';
+            const grid = document.getElementById('qrGrid');
+            const { cols, rows } = calculateGrid(count);
+
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+            const totalCells = cols * rows;
+            const logoSVG = getLogoSVG();
+
+            for (let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'qr-cell';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'qr-wrapper';
+                wrapper.id = `qr-${i}`;
+
+                const logo = document.createElement('div');
+                logo.className = 'qr-logo';
+                logo.innerHTML = `<svg class="logo-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="greenGrad-${i}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="200" height="200" rx="30" ry="30" fill="#000"/>
+                    <polygon points="100,25 170,75 30,75" fill="none" stroke="url(#greenGrad-${i})" stroke-width="12" stroke-linejoin="round"/>
+                    <g transform="translate(100,95)" fill="none" stroke="url(#greenGrad-${i})" stroke-width="6" stroke-linecap="round">
+                        <path d="M-15,-10 L0,-20 L15,-10"/>
+                        <path d="M15,-10 L20,5 L10,15"/>
+                        <path d="M10,15 L-10,15 L-20,5"/>
+                        <path d="M-20,5 L-15,-10"/>
+                        <polygon points="-18,-8 -12,-18 -8,-8" fill="url(#greenGrad-${i})"/>
+                        <polygon points="18,2 12,15 8,5" fill="url(#greenGrad-${i})"/>
+                        <polygon points="0,18 -8,8 8,8" fill="url(#greenGrad-${i})"/>
+                    </g>
+                    <text x="100" y="150" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="40" font-weight="900" fill="url(#greenGrad-${i})">BA</text>
+                    <text x="100" y="185" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="28" font-weight="900" fill="url(#greenGrad-${i})">CIRARO</text>
+                </svg>`;
+
+                const label = document.createElement('div');
+                label.className = 'qr-label';
+                label.textContent = 'baciraro.net';
+
+                cell.appendChild(wrapper);
+                cell.appendChild(label);
+                grid.appendChild(cell);
+
+                // Generate QR with higher error correction for logo overlay
+                new QRCode(wrapper, {
+                    text: url,
+                    width: 200,
+                    height: 200,
+                    correctLevel: QRCode.CorrectLevel.H,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff"
+                });
+
+                // Add logo after QR is rendered
+                setTimeout(() => {
+                    wrapper.appendChild(logo);
+                }, 50);
+            }
+
+            document.getElementById('stats').textContent =
+                `Total: ${totalCells} QR Code (${cols}x${rows}) | URL: ${url}`;
+        }
+
+        // Generate on load
+        window.onload = function() {
+            generateQR();
+        };
+    </script>
+</body>
+</html>

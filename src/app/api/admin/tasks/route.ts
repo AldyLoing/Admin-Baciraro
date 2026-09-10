@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getAuthorizedClient, createGcalEvent, updateGcalEvent, deleteGcalEvent } from "@/lib/admin/gcal";
+import { logActivity, createNotification } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, project_id, assigned_to, due_date, priority } = await req.json();
+  const { title, description, project_id, assigned_to, due_date, priority, recurrence_rule } = await req.json();
 
   if (!title || !String(title).trim()) {
     return NextResponse.json({ error: "Judul tugas wajib diisi." }, { status: 400 });
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
       due_date: due_date || null,
       priority: ["low", "medium", "high"].includes(priority) ? priority : "medium",
       status: "pending",
+      recurrence_rule: recurrence_rule || null,
     })
     .select("id")
     .single();
@@ -47,6 +49,21 @@ export async function POST(req: NextRequest) {
     console.warn("Google Calendar: gagal membuat event.", e);
   }
 
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: "create", entityType: "task",
+    entityId: task.id, entityName: String(title).trim(),
+  });
+
+  if (assigned_to) {
+    await createNotification({
+      supabase, userId: Number(assigned_to),
+      type: "task_assigned",
+      message: `Kamu ditugaskan: "${String(title).trim()}"`,
+      link: `/admin/schedule`,
+    });
+  }
+
   return NextResponse.json({ ok: true, id: task.id, gcalEventId });
 }
 
@@ -55,7 +72,7 @@ export async function PATCH(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { id, status, title, description, project_id, assigned_to, due_date, priority } = body;
+  const { id, status, title, description, project_id, assigned_to, due_date, priority, recurrence_rule } = body;
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
   if (status !== undefined && !["pending", "active", "completed"].includes(status)) {
     return NextResponse.json({ error: "Parameter status tidak valid." }, { status: 400 });
@@ -69,6 +86,7 @@ export async function PATCH(req: NextRequest) {
   if (assigned_to !== undefined) updates.assigned_to = assigned_to || null;
   if (due_date !== undefined) updates.due_date = due_date || null;
   if (priority !== undefined) updates.priority = ["low", "medium", "high"].includes(priority) ? priority : "medium";
+  if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule || null;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Tidak ada field untuk diperbarui." }, { status: 400 });
@@ -77,12 +95,20 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existingTask } = await supabase
     .from("tasks")
-    .select("gcal_event_id, title, description, due_date")
+    .select("gcal_event_id, title, description, due_date, assigned_to")
     .eq("id", id)
     .single();
 
   const { error } = await supabase.from("tasks").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal update tugas: " + error.message }, { status: 400 });
+
+  if (status === "completed") {
+    await logActivity({
+      supabase, userId: admin.id, userName: admin.name,
+      action: "complete", entityType: "task",
+      entityId: id, entityName: updates.title ?? existingTask?.title ?? "",
+    });
+  }
 
   let gcalUpdated = false;
   if (existingTask?.gcal_event_id) {
@@ -120,12 +146,18 @@ export async function DELETE(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existingTask } = await supabase
     .from("tasks")
-    .select("gcal_event_id")
+    .select("gcal_event_id, title")
     .eq("id", id)
     .single();
 
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: "delete", entityType: "task",
+    entityId: id, entityName: existingTask?.title ?? "",
+  });
 
   let gcalDeleted = false;
   if (existingTask?.gcal_event_id) {

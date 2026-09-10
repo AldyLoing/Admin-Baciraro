@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import * as XLSX from "xlsx";
 import { formatRupiah } from "@/lib/admin/format";
 
 type AccountInfo = { code: number; name: string; type: string };
@@ -85,6 +86,74 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
 
   const grandTotal = summary.reduce((s, c) => s + c.total, 0);
 
+  function exportExcel() {
+    const categories = summary.filter((c) => c.items.length > 0);
+    const maxRows = Math.max(...categories.map((c) => c.items.length), 1);
+    const cols = ["Tanggal", "Uraian", "Nominal"];
+
+    const wsData: (string | number | null)[][] = [];
+
+    const headerRow: (string | null)[] = [null, null, null];
+    for (const cat of categories) {
+      headerRow.push(cat.category, null, null);
+    }
+    wsData.push(headerRow);
+
+    const subHeaderRow: (string | null)[] = [null, null, null];
+    for (const _cat of categories) {
+      subHeaderRow.push("Tanggal", "Uraian", "Nominal");
+    }
+    wsData.push(subHeaderRow);
+
+    for (let i = 0; i < maxRows; i++) {
+      const row: (string | number | null)[] = [null, null, null];
+      for (const cat of categories) {
+        const item = cat.items[i];
+        if (item) {
+          row.push(
+            new Date(item.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+            item.description,
+            item.amount
+          );
+        } else {
+          row.push(null, null, null);
+        }
+      }
+      wsData.push(row);
+    }
+
+    const totalRow: (string | number | null)[] = [null, null, null, "Total", null, null];
+    for (let i = 1; i < categories.length; i++) {
+      totalRow.push("Total", null, null);
+    }
+    wsData.push(totalRow);
+
+    const totalValRow: (string | number | null)[] = [null, null, null, categories[0]?.total ?? 0, null, null];
+    for (let i = 1; i < categories.length; i++) {
+      totalValRow.push(categories[i].total, null, null);
+    }
+    wsData.push(totalValRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    const colWidths = [{ wch: 2 }, { wch: 2 }, { wch: 2 }];
+    for (const _cat of categories) {
+      colWidths.push({ wch: 14 }, { wch: 40 }, { wch: 16 });
+    }
+    ws["!cols"] = colWidths;
+
+    const merges: XLSX.Range[] = [];
+    for (let i = 0; i < categories.length; i++) {
+      const startCol = 3 + i * 3;
+      merges.push({ s: { r: 0, c: startCol }, e: { r: 0, c: startCol + 2 } });
+    }
+    ws["!merges"] = merges;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bookkeeping");
+    XLSX.writeFile(wb, "bookkeeping-baciraro.xlsx");
+  }
+
   const balances = useMemo(() => {
     const result: { name: string; type: string; debit: number; credit: number; balance: number }[] = [];
     const accTotals = new Map<number, { debit: number; credit: number }>();
@@ -119,11 +188,22 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Buku Besar</h1>
-        <p className="text-white/50 mt-1">
-          Ringkasan pembukuan per kategori — sesuai format Bookkeeping.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Buku Besar</h1>
+          <p className="text-white/50 mt-1">
+            Ringkasan pembukuan per kategori — sesuai format Bookkeeping.
+          </p>
+        </div>
+        <button
+          onClick={exportExcel}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-[#151515] text-white/70 text-sm font-medium hover:bg-white/5 transition"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export Excel
+        </button>
       </div>
 
       <div className="bg-[#151515] rounded-xl border border-white/10 p-5 mb-8">

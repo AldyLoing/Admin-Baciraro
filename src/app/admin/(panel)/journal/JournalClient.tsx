@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { formatRupiah, formatDate } from "@/lib/admin/format";
 import SearchInput from "@/components/ui/SearchInput";
 import Pagination from "@/components/ui/Pagination";
@@ -176,6 +177,71 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
     showSuccess("Jurnal dihapus.");
   }
 
+  function exportExcel() {
+    const wb = XLSX.utils.book_new();
+    const wsData: (string | number | null)[][] = [];
+
+    wsData.push([null, "Tanggal", "Deskripsi", "REF", "Akun", "No.Akun", "Debit", "Kredit"]);
+
+    for (const entry of filtered) {
+      const debitLines = entry.lines.filter((l) => l.debit > 0);
+      const creditLines = entry.lines.filter((l) => l.credit > 0);
+
+      const maxRows = Math.max(debitLines.length, creditLines.length, 1);
+
+      for (let i = 0; i < maxRows; i++) {
+        const row: (string | number | null)[] = [];
+
+        if (i < debitLines.length) {
+          const dl = debitLines[i];
+          const acc = accountMap.get(dl.account_code);
+          row.push(
+            i === 0 ? entry.date : null,
+            i === 0 ? entry.description : null,
+            i === 0 ? (entry.reference || null) : null,
+            acc?.name ?? dl.account_code,
+            dl.account_code,
+            dl.debit,
+            null
+          );
+        } else {
+          row.push(null, null, null, null, null, null, null);
+        }
+
+        if (i < creditLines.length) {
+          const cl = creditLines[i];
+          const acc = accountMap.get(cl.account_code);
+          row[3] = acc?.name ?? cl.account_code;
+          row[4] = cl.account_code;
+          row[5] = null;
+          row[6] = cl.credit;
+        }
+
+        wsData.push(row);
+      }
+    }
+
+    wsData.push([null, null, null, null, null, null, null, null]);
+    wsData.push([null, null, null, null, null, null, "Total Debit", filtered.reduce((s, e) => s + e.total_debit, 0)]);
+    wsData.push([null, null, null, null, null, null, "Total Kredit", filtered.reduce((s, e) => s + e.total_credit, 0)]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    ws["!cols"] = [
+      { wch: 2 },
+      { wch: 12 },
+      { wch: 45 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 16 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Jurnal");
+    XLSX.writeFile(wb, "jurnal-baciraro.xlsx");
+  }
+
   return (
     <>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -185,17 +251,28 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
             Pencatatan transaksi double-entry (debit & kredit).
           </p>
         </div>
-        {isAdmin && (
+        <div className="flex gap-2">
           <button
-            onClick={() => (showForm ? setShowForm(false) : setShowForm(true))}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            onClick={exportExcel}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-[#151515] text-white/70 text-sm font-medium hover:bg-white/5 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            {showForm ? "Tutup" : "Tambah Jurnal"}
+            Export Excel
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={() => (showForm ? setShowForm(false) : setShowForm(true))}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {showForm ? "Tutup" : "Tambah Jurnal"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -348,8 +425,8 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
               </thead>
               <tbody>
                 {paginated.map((e) => (
-                  <>
-                    <tr key={e.id} className="border-b border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => setExpanded((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}>
+                  <Fragment key={e.id}>
+                    <tr className="border-b border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => setExpanded((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}>
                       <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDate(e.date)}</td>
                       <td className="px-4 py-3 font-medium text-white">{e.description}</td>
                       <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{e.reference || "-"}</td>
@@ -391,7 +468,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

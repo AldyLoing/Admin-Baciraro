@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
+import { logActivity } from "@/lib/admin/audit";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, actual_total } = await req.json();
+  const { id, actual_total, kas_optional_percent } = await req.json();
   if (!id) return NextResponse.json({ error: "ID payout wajib diisi." }, { status: 400 });
 
   const actual = Number(actual_total);
@@ -32,13 +33,16 @@ export async function PATCH(req: NextRequest) {
     .eq("payout_id", id);
 
   const contribs = (members ?? []).map((m: { contribution_percent: number | string }) => ({ percent: Number(m.contribution_percent) }));
-  const dist = calculateDistribution(actual, contribs);
+  const kasOpt = Number(kas_optional_percent) || 0;
+  const dist = calculateDistribution(actual, contribs, kasOpt);
 
   const { error: err } = await supabase
     .from("payouts")
     .update({
       total_amount: Number(dist.total.toFixed(2)),
       orders_fee: Number(dist.kasAmount.toFixed(2)),
+      kas_optional_percent: kasOpt,
+      kas_optional_amount: Number(dist.kasOptionalAmount.toFixed(2)),
       net_amount: Number(dist.distributable.toFixed(2)),
       finalized_at: new Date().toISOString(),
     })
@@ -61,6 +65,13 @@ export async function PATCH(req: NextRequest) {
       );
     }
   }
+
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: "finalize", entityType: "payout",
+    entityId: id, entityName: "",
+    details: { actual_total: actual, kas_optional_percent: kasOpt },
+  });
 
   return NextResponse.json({
     ok: true,

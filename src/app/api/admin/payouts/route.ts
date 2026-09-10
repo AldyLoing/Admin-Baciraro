@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { calculateDistribution } from "@/lib/admin/format";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { project_id, date, members } = await req.json();
+  const { project_id, date, members, total_amount } = await req.json();
   if (!project_id || !date) {
     return NextResponse.json({ error: "Pilih project dan tanggal payout." }, { status: 400 });
   }
@@ -20,7 +21,6 @@ export async function POST(req: NextRequest) {
 
   if (!project) return NextResponse.json({ error: "Project tidak ditemukan." }, { status: 404 });
 
-  // Anggota penerima: kiriman dari form (prefill project, bisa diubah). Default dari anggota project.
   let selected = Array.isArray(members) && members.length > 0 ? members : null;
 
   if (!selected) {
@@ -46,20 +46,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Nominal menyusul: payout dibuat dengan 0, persen + tugas dikunci dari awal.
-  // Setelah barang terjual, admin isi total riil lewat PATCH /payouts/finalize.
+  const nominal = Number(total_amount) || 0;
+  const isFinalized = nominal > 0;
+
+  const insertData: Record<string, unknown> = {
+    project_id: project.id,
+    project_name: project.name,
+    date,
+    total_amount: 0,
+    orders_fee: 0,
+    net_amount: 0,
+    status: "pending",
+    created_by: admin.id,
+  };
+
+  if (isFinalized) {
+    const contribs = selected.map((m: any) => ({ percent: Number(m.contribution_percent) || 0 }));
+    const dist = calculateDistribution(nominal, contribs);
+    insertData.total_amount = Number(dist.total.toFixed(2));
+    insertData.orders_fee = Number(dist.kasAmount.toFixed(2));
+    insertData.net_amount = Number(dist.distributable.toFixed(2));
+    insertData.finalized_at = new Date().toISOString();
+  }
+
   const { data: payout, error: err } = await supabase
     .from("payouts")
-    .insert({
-      project_id: project.id,
-      project_name: project.name,
-      date,
-      total_amount: 0,
-      orders_fee: 0,
-      net_amount: 0,
-      status: "pending",
-      created_by: admin.id,
-    })
+    .insert(insertData)
     .select("id")
     .single();
 
@@ -78,12 +90,19 @@ export async function POST(req: NextRequest) {
       memberName = tm?.name ?? "Anggota";
     }
 
+    let memberAmount = 0;
+    if (isFinalized) {
+      const contribs = selected.map((s: any) => ({ percent: Number(s.contribution_percent) || 0 }));
+      const dist = calculateDistribution(nominal, contribs);
+      memberAmount = dist.totalPercent > 0 ? (dist.distributable * percent) / dist.totalPercent : 0;
+    }
+
     const { error: merr } = await supabase.from("payout_members").insert({
       payout_id: payout.id,
       member_id: memberId,
       name: memberName,
       contribution_percent: percent,
-      amount: 0,
+      amount: Number(memberAmount.toFixed(2)),
       tugas: m.tugas === "" || m.tugas == null ? null : String(m.tugas).trim(),
     });
     if (merr) {

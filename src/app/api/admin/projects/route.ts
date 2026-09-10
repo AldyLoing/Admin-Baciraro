@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { ensureIncomeFromProject } from "@/lib/admin/transactions";
+import { logActivity, createNotification } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -88,6 +89,26 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: "create", entityType: "project",
+    entityId: project.id, entityName: String(name).trim(),
+    details: { total_value: value, client_name: client_name?.trim() || null },
+  });
+
+  if (membersList.length > 0) {
+    for (const m of membersList) {
+      if (m.member_id) {
+        await createNotification({
+          supabase, userId: Number(m.member_id),
+          type: "project_assigned",
+          message: `Kamu ditugaskan di project "${String(name).trim()}"`,
+          link: `/admin/projects/${project.id}`,
+        });
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true, id: project.id });
 }
 
@@ -146,6 +167,30 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: status === "completed" ? "complete" : status === "paid" ? "mark_paid" : "update",
+    entityType: "project",
+    entityId: id, entityName: String(name).trim(),
+    details: { status, total_value: value },
+  });
+
+  if (status === "completed" || status === "paid") {
+    const { data: pm } = await supabase.from("project_members").select("member_id").eq("project_id", id);
+    if (pm) {
+      for (const m of pm) {
+        if (m.member_id) {
+          await createNotification({
+            supabase, userId: m.member_id,
+            type: "project_completed",
+            message: `Project "${String(name).trim()}" telah ${status === "paid" ? "dibayar" : "selesai"}`,
+            link: `/admin/projects/${id}`,
+          });
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true, incomeRecorded });
 }
 
@@ -157,8 +202,16 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+
+  const { data: proj } = await supabase.from("projects").select("name").eq("id", id).single();
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await logActivity({
+    supabase, userId: admin.id, userName: admin.name,
+    action: "delete", entityType: "project",
+    entityId: id, entityName: proj?.name ?? "",
+  });
 
   return NextResponse.json({ ok: true });
 }
