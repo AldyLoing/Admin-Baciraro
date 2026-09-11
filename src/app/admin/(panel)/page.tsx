@@ -40,7 +40,7 @@ export default async function AdminDashboardPage() {
       .select("date, type, amount, project_id, description, source"),
     supabase
       .from("payout_members")
-      .select("member_id, amount"),
+      .select("member_id, name, amount, payouts!inner(finalized_at)"),
     supabase
       .from("journal_entries")
       .select("total_debit, total_credit"),
@@ -137,15 +137,15 @@ export default async function AdminDashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
-  // --- Chart 3: Payout by Member ---
+  // --- Chart 3: Payout by Member (hanya finalized) ---
   const allPayoutMembers = (payoutMembers ?? []) as any[];
-  const memberPayoutMap = new Map<number, { name: string; amount: number }>();
-  for (const pm of allPayoutMembers) {
-    const member = (members ?? []).find((m: any) => m.id === pm.member_id);
-    const name = member?.name || "Unknown";
-    const curr = memberPayoutMap.get(pm.member_id) || { name, amount: 0 };
+  const finalizedPayouts = allPayoutMembers.filter((pm: any) => pm.payouts?.finalized_at);
+  const memberPayoutMap = new Map<string, { name: string; amount: number }>();
+  for (const pm of finalizedPayouts) {
+    const name = pm.name || "Unknown";
+    const curr = memberPayoutMap.get(name) || { name, amount: 0 };
     curr.amount += Number(pm.amount) || 0;
-    memberPayoutMap.set(pm.member_id, curr);
+    memberPayoutMap.set(name, curr);
   }
   const payoutByMember = Array.from(memberPayoutMap.values())
     .sort((a, b) => b.amount - a.amount)
