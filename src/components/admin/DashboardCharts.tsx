@@ -89,7 +89,7 @@ function IncomeByClientChart({ data }: { data: ClientRow[] }) {
       <h2 className="text-lg font-semibold text-white mb-4">Income by Client</h2>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} layout="vertical" margin={{ left: 10 }}>
-          <XAxis type="number" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v / 1000000)}jt`} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000000 ? `${Math.round(v / 1000000)}jt` : v >= 1000 ? `${Math.round(v / 1000)}rb` : `${v}`} />
           <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} width={110} />
           <Tooltip contentStyle={tooltipStyle} formatter={(value) => [formatRupiah(Number(value)), "Income"]} />
           <Bar dataKey="value" fill="#3B82F6" radius={[0, 4, 4, 0]} maxBarSize={20} />
@@ -116,7 +116,7 @@ function PayoutByMemberChart({ data }: { data: MemberPayoutRow[] }) {
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data}>
           <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v / 1000000)}jt`} width={44} />
+          <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000000 ? `${Math.round(v / 1000000)}jt` : v >= 1000 ? `${Math.round(v / 1000)}rb` : `${v}`} width={44} />
           <Tooltip contentStyle={tooltipStyle} formatter={(value) => [formatRupiah(Number(value)), "Payout"]} />
           <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={28} />
         </BarChart>
@@ -175,7 +175,7 @@ export default function DashboardCharts({
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={monthly}>
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v / 1000000)}jt`} width={44} />
+                <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000000 ? `${Math.round(v / 1000000)}jt` : v >= 1000 ? `${Math.round(v / 1000)}rb` : `${v}`} width={44} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [formatRupiah(Number(value)), name === "income" ? "Pemasukan" : "Pengeluaran"]} />
                 <Legend formatter={(value: string) => (value === "income" ? "Pemasukan" : "Pengeluaran")} />
                 <Bar dataKey="income" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={24} />
