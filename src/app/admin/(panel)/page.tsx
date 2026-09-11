@@ -117,6 +117,7 @@ export default async function AdminDashboardPage() {
   }
   const expenseAccounts = accountList.filter((a: any) => a.type === "expense");
   const expenseByKategori = expenseAccounts
+    .filter((a: any) => a.code !== 5119)
     .map((a: any) => ({ name: a.name, value: lineByAccount.get(a.code) || 0 }))
     .filter((c) => c.value > 0)
     .sort((a, b) => b.value - a.value);
