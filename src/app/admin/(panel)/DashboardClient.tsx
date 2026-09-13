@@ -423,7 +423,7 @@ export default function DashboardClient({
             </div>
           ) : (
             <div className="space-y-3">
-              {memberStats.slice(0, 6).map((m, i) => {
+              {memberStats.filter((m) => m.projectCount > 0).slice(0, 6).map((m, i) => {
                 const barWidth = topIncome > 0 ? Math.min(100, (m.totalIncome / topIncome) * 100) : 0;
                 return (
                   <div key={m.id} className="group">
