@@ -135,7 +135,7 @@ export default async function AdminMembersPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {stats.map((m) => (
+        {stats.filter((m) => m.projectCount > 0).map((m) => (
           <div key={m.id} className="bg-[#151515] rounded-xl border border-white/10 p-6">
             <div className="flex items-center gap-4 mb-4">
               {m.photo_url ? (
