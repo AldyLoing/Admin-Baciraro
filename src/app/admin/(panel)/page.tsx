@@ -52,10 +52,10 @@ export default async function AdminDashboardPage() {
       .select("account_code, debit, credit"),
     supabase
       .from("tasks")
-      .select("id, status, assigned_to, priority"),
+      .select("id, title, status, assigned_to, priority, due_date"),
     supabase
       .from("payouts")
-      .select("id, net_amount, status, kas_optional_amount"),
+      .select("id, project_name, net_amount, status, kas_optional_amount, finalized_at"),
   ]);
 
   const allProjects = (projects ?? []) as any[];
@@ -169,6 +169,18 @@ export default async function AdminDashboardPage() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
+  // --- Hari Ini: Attention items ---
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const overdueTasks = allTasks
+    .filter((t: any) => t.due_date && t.due_date < todayStr && t.status !== "completed")
+    .map((t: any) => ({ id: Number(t.id), title: t.title || "Untitled", due_date: t.due_date }));
+
+  const allPayouts = (payouts ?? []) as any[];
+  const pendingPayouts = allPayouts
+    .filter((p: any) => p.status !== "paid" && !p.finalized_at)
+    .map((p: any) => ({ id: Number(p.id), title: p.project_name || "Untitled", project_name: p.project_name }));
+
   return (
     <DashboardClient
       firstName={firstName}
@@ -190,6 +202,8 @@ export default async function AdminDashboardPage() {
       incomeByClient={incomeByClient}
       payoutByMember={payoutByMember}
       taskByAssignee={taskByAssignee}
+      overdueTasks={overdueTasks}
+      pendingPayouts={pendingPayouts}
     />
   );
 }

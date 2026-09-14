@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { formatRupiah } from "@/lib/admin/format";
 import DashboardCharts from "@/components/admin/DashboardCharts";
+import Onboarding from "@/components/admin/Onboarding";
 
 type Project = {
   id: string;
@@ -30,6 +31,7 @@ type KategoriRow = { name: string; value: number };
 type ClientRow = { name: string; value: number };
 type MemberPayoutRow = { name: string; amount: number };
 type TaskAssigneeRow = { name: string; pending: number; active: number; total: number };
+type AttentionItem = { id: number; title: string; due_date?: string; project_name?: string };
 
 type Props = {
   firstName: string;
@@ -51,6 +53,8 @@ type Props = {
   incomeByClient: ClientRow[];
   payoutByMember: MemberPayoutRow[];
   taskByAssignee: TaskAssigneeRow[];
+  overdueTasks: AttentionItem[];
+  pendingPayouts: AttentionItem[];
 };
 
 const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
@@ -104,6 +108,8 @@ export default function DashboardClient({
   incomeByClient,
   payoutByMember,
   taskByAssignee,
+  overdueTasks,
+  pendingPayouts,
 }: Props) {
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
@@ -135,6 +141,9 @@ export default function DashboardClient({
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Onboarding */}
+      <Onboarding />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
@@ -154,6 +163,61 @@ export default function DashboardClient({
           </svg>
           Tambah Project
         </Link>
+      </div>
+
+      {/* Hari Ini: Quick Actions + Attention */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        {/* Quick Actions */}
+        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <h3 className="text-sm font-semibold text-white/70 mb-3">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/admin/projects/new" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              + Project
+            </Link>
+            <Link href="/admin/transactions" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              + Income
+            </Link>
+            <Link href="/admin/transactions" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+              + Expense
+            </Link>
+            <Link href="/admin/schedule" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              + Task
+            </Link>
+            <Link href="/admin/meetings" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition col-span-2">
+              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              + Rapat
+            </Link>
+          </div>
+        </div>
+
+        {/* Perlu Perhatian */}
+        <div className="lg:col-span-2 bg-[#151515] rounded-xl border border-white/10 p-5">
+          <h3 className="text-sm font-semibold text-white/70 mb-3">Perlu Perhatian</h3>
+          {overdueTasks.length === 0 && pendingPayouts.length === 0 ? (
+            <p className="text-sm text-white/40 py-4 text-center">Tidak ada yang perlu diperhatian saat ini.</p>
+          ) : (
+            <div className="space-y-2">
+              {overdueTasks.map((t) => (
+                <div key={`task-${t.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  <span className="text-sm text-white/80 flex-1">Tugas "{t.title}" terlambat</span>
+                  <span className="text-xs text-red-400 shrink-0">Overdue</span>
+                </div>
+              ))}
+              {pendingPayouts.map((p) => (
+                <div key={`payout-${p.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="text-sm text-white/80 flex-1">Payout "{p.project_name}" belum finalized</span>
+                  <span className="text-xs text-amber-400 shrink-0">Pending</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
