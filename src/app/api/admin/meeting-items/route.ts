@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -29,6 +30,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Gagal menambah tindak lanjut: " + (err?.message ?? "unknown") }, { status: 400 });
   }
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "action_item", entityId: created.id,
+    entityName: String(task).trim(), after: created,
+  });
+  if (!ok) return NextResponse.json({ error: "Tindak lanjut dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, item: created });
 }
 
@@ -42,8 +49,16 @@ export async function PATCH(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("action_items").select("*").eq("id", id).single();
   const { error } = await supabase.from("action_items").update({ status }).eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal update status: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "action_item", entityId: Number(id),
+    entityName: before?.task || String(id),
+    before: before ? { status: before.status } : null, after: { status },
+  });
+  if (!ok) return NextResponse.json({ error: "Status tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -56,8 +71,15 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("action_items").select("*").eq("id", id).single();
   const { error } = await supabase.from("action_items").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "action_item", entityId: Number(id),
+    entityName: before?.task || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Tindak lanjut dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

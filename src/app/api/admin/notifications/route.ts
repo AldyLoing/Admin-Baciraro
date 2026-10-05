@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin();
@@ -60,6 +61,12 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", admin.id)
+    .single();
   const { error } = await supabase
     .from("notifications")
     .delete()
@@ -67,6 +74,12 @@ export async function DELETE(req: NextRequest) {
     .eq("user_id", admin.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "notification", entityId: Number(id),
+    entityName: before?.type || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Notifikasi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

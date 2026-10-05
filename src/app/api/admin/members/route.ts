@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const hashed = bcrypt.hashSync(password, 10);
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("team_members").insert({
+  const { data: created, error } = await supabase.from("team_members").insert({
     name: String(name).trim(),
     username: uname,
     email: email?.trim().toLowerCase() || uname,
@@ -30,9 +31,16 @@ export async function POST(req: NextRequest) {
     photo_url: photo_url?.trim() || null,
     status: status || "active",
     is_admin: !!is_admin,
-  });
+  }).select("id").single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "member", entityId: created.id,
+    entityName: String(name).trim(),
+    after: { name: String(name).trim(), username: uname, email: email?.trim().toLowerCase() || uname, role: role?.trim() || "Member", division: division?.trim() || "business", status: status || "active", is_admin: !!is_admin },
+  });
+  if (!ok) return NextResponse.json({ error: "Anggota dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -67,8 +75,24 @@ export async function PATCH(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase
+    .from("team_members")
+    .select("id, name, username, email, role, division, status, is_admin")
+    .eq("id", id)
+    .single();
   const { error } = await supabase.from("team_members").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const auditAfter: Record<string, unknown> = { ...(updates as Record<string, unknown>) };
+  delete auditAfter.password;
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "member", entityId: Number(id),
+    entityName: before?.name || String(id),
+    before,
+    after: auditAfter,
+    extra: { password_changed: Boolean((updates as Record<string, unknown>).password) },
+  });
+  if (!ok) return NextResponse.json({ error: "Perubahan tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -84,8 +108,19 @@ export async function DELETE(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase
+    .from("team_members")
+    .select("id, name, username, email, role, division, status, is_admin")
+    .eq("id", id)
+    .single();
   const { error } = await supabase.from("team_members").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "member", entityId: Number(id),
+    entityName: before?.name || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Anggota dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

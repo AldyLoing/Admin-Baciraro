@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { journalForMovement, deleteJournalEntry, round2 } from "@/lib/admin/inventori";
-import { logActivity } from "@/lib/admin/audit";
+import { auditMutation } from "@/lib/admin/audit";
 
 const MOVEMENT_SELECT = `
   id, product_id, type, reason, qty, recipient, note, reference, harga_modal,
@@ -140,16 +140,13 @@ export async function POST(req: NextRequest) {
     // jurnal bersifat pelengkap, mutasi tetap tersimpan
   }
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "create",
-    entityType: "stock_movement",
+  const okCreate = await auditMutation({
+    supabase, admin, action: "create", entityType: "stock_movement",
     entityId: movement.id,
     entityName: `${type === "in" ? "Masuk" : "Keluar"} ${qty} ${product.unit} ${product.name}`,
-    details: { reason, recipient, note, journal: journalId },
+    after: { product_id: product.id, type, qty, reason, recipient, note, harga_modal: hargaModal, journal: journalId },
   });
+  if (!okCreate) return NextResponse.json({ error: "Mutasi dicatat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, id: movement.id, stok_baru: newStok, journal: !!journalId });
 }
@@ -194,15 +191,14 @@ export async function DELETE(req: NextRequest) {
   const { error: deleteError } = await supabase.from("stock_movements").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: "Gagal menghapus mutasi: " + deleteError.message }, { status: 400 });
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "delete",
-    entityType: "stock_movement",
+  const okDelete = await auditMutation({
+    supabase, admin, action: "delete", entityType: "stock_movement",
     entityId: id,
     entityName: `${movement.type === "in" ? "Masuk" : "Keluar"} ${movement.qty} ${product.unit} ${product.name}`,
+    before: movement as unknown as Record<string, unknown>,
+    extra: { stok_baru: newStok },
   });
+  if (!okDelete) return NextResponse.json({ error: "Mutasi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, stok_baru: newStok });
 }

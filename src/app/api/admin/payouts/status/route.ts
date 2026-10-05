@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { ensureExpenseFromPayout } from "@/lib/admin/transactions";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
@@ -13,6 +14,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("payouts").select("*").eq("id", id).single();
   const { data: payout, error: updErr } = await supabase
     .from("payouts")
     .update({ status })
@@ -42,6 +44,15 @@ export async function PATCH(req: NextRequest) {
       );
     }
   }
+
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "payout", entityId: Number(id),
+    entityName: `${payout.project_name || "Payout"} — ${payout.id}`,
+    before: before ? { status: before.status } : null,
+    after: { status },
+    extra: { expense_recorded: expenseRecorded },
+  });
+  if (!ok) return NextResponse.json({ error: "Status tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({
     ok: true,

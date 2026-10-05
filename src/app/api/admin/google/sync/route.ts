@@ -3,6 +3,7 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getAuthorizedClient, createGcalEvent, updateGcalEvent, deleteGcalEvent, listGcalEvents } from "@/lib/admin/gcal";
 import { fetchIcsEvents } from "@/lib/admin/ics";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -46,6 +47,11 @@ export async function POST(req: NextRequest) {
       });
       await supabase.from("tasks").update({ gcal_event_id: eventId }).eq("id", task.id);
     }
+    const ok = await auditMutation({
+      supabase, admin, action: "sync", entityType: "task", entityId: Number(task.id),
+      entityName: task.title, extra: { direction: "push", google_calendar: true },
+    });
+    if (!ok) return NextResponse.json({ error: "Sinkronisasi berhasil, tetapi audit gagal. Periksa log server." }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Sync task ke Google Calendar gagal:", err);
@@ -69,10 +75,16 @@ export async function DELETE(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { data: task } = await supabase.from("tasks").select("gcal_event_id").eq("id", taskId).single();
+  const { data: task } = await supabase.from("tasks").select("gcal_event_id, title").eq("id", taskId).single();
   if (task?.gcal_event_id) {
     await deleteGcalEvent(auth, task.gcal_event_id);
     await supabase.from("tasks").update({ gcal_event_id: null }).eq("id", taskId);
+
+    const ok = await auditMutation({
+      supabase, admin, action: "unsync", entityType: "task", entityId: Number(taskId),
+      entityName: task.title || String(taskId), extra: { google_calendar: true },
+    });
+    if (!ok) return NextResponse.json({ error: "Unsync berhasil, tetapi audit gagal. Periksa log server." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
@@ -146,6 +158,15 @@ export async function GET() {
         });
         if (!error) inserted++;
       }
+    }
+
+    if (inserted + updated > 0) {
+      const ok = await auditMutation({
+        supabase, admin, action: "pull", entityType: "task",
+        entityName: "Tarik event kalender",
+        after: { inserted, updated, total: events.length, source },
+      });
+      if (!ok) return NextResponse.json({ error: "Pull berhasil, tetapi audit gagal. Periksa log server." }, { status: 500 });
     }
 
     return NextResponse.json({

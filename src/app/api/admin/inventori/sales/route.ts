@@ -9,7 +9,7 @@ import {
   deleteJournalEntry,
   round2,
 } from "@/lib/admin/inventori";
-import { logActivity } from "@/lib/admin/audit";
+import { auditMutation } from "@/lib/admin/audit";
 
 const SALE_SELECT = `
   id, date, reference, recipient, total, payment_note, transaction_id, created_by, created_at,
@@ -271,16 +271,13 @@ export async function POST(req: NextRequest) {
     // jurnal pelengkap — penjualan tetap tersimpan
   }
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "create",
-    entityType: "sale",
+  const okCreate = await auditMutation({
+    supabase, admin, action: "create", entityType: "sale",
     entityId: sale.id,
     entityName: `${saleReference} — ${recipient || "Tanpa penerima"}`,
-    details: { total, items: itemRows.length, reference: invReference },
+    after: { date, reference: saleReference, recipient, total, items: itemRows.length, inv_reference: invReference, hpp: hppTotal, journal_ok: journalOk },
   });
+  if (!okCreate) return NextResponse.json({ error: "Penjualan dicatat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({
     ok: true,
@@ -354,15 +351,13 @@ export async function DELETE(req: NextRequest) {
   const { error: deleteError } = await supabase.from("sales").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: "Gagal menghapus penjualan: " + deleteError.message }, { status: 400 });
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "delete",
-    entityType: "sale",
-    entityId: id,
-    entityName: sale.reference,
+  const okDelete = await auditMutation({
+    supabase, admin, action: "delete", entityType: "sale",
+    entityId: id, entityName: sale.reference,
+    before: sale as unknown as Record<string, unknown>,
+    extra: { restored_stock_items: (items ?? []).length },
   });
+  if (!okDelete) return NextResponse.json({ error: "Penjualan dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

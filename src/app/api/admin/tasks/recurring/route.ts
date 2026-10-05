@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -75,6 +76,14 @@ export async function POST(req: NextRequest) {
   if (insertErr || !newTask) {
     return NextResponse.json({ error: "Gagal membuat tugas berulang: " + (insertErr?.message ?? "unknown") }, { status: 400 });
   }
+
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "task", entityId: newTask.id,
+    entityName: task.title,
+    after: { title: task.title, due_date: nextDueDate, recurrence_rule: task.recurrence_rule, recurrence_parent_id: task.id },
+    extra: { generated_from: task.id },
+  });
+  if (!ok) return NextResponse.json({ error: "Tugas berulang dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, new_task_id: newTask.id });
 }

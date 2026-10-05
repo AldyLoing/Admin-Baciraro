@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { fetchIcsEvents } from "@/lib/admin/ics";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -57,6 +58,15 @@ export async function POST(req: NextRequest) {
       ics_uid: ev.uid,
     });
     if (!error) inserted++;
+  }
+
+  if (inserted + updated > 0) {
+    const ok = await auditMutation({
+      supabase, admin, action: "import", entityType: "task",
+      entityName: "Impor kalender ICS",
+      after: { total: events.length, inserted, updated },
+    });
+    if (!ok) return NextResponse.json({ error: "Impor berhasil, tetapi audit gagal. Periksa log server." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, total: events.length, inserted, updated });

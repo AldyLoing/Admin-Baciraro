@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { exchangeCode } from "@/lib/admin/gcal";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
@@ -43,6 +44,14 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       return NextResponse.redirect(new URL("/admin/schedule?error=save_failed", url.origin));
+    }
+
+    const ok = await auditMutation({
+      supabase, admin, action: "connect", entityType: "calendar", entityName: email || admin.name,
+      after: { google_email: email },
+    });
+    if (!ok) {
+      return NextResponse.redirect(new URL("/admin/schedule?error=audit_failed", url.origin));
     }
 
     cookieStore.delete("google_oauth_state");

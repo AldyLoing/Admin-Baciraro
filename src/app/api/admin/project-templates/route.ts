@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -41,6 +42,12 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "project_template", entityId: data.id,
+    entityName: data.name, after: data,
+  });
+  if (!ok) return NextResponse.json({ error: "Template dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, data });
 }
 
@@ -56,17 +63,22 @@ export async function PUT(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("project_templates")
-    .update({
-      name: String(name).trim(),
-      description: description?.trim() || null,
-      default_members: Array.isArray(default_members) ? default_members : [],
-      default_tasks: Array.isArray(default_tasks) ? default_tasks : [],
-    })
-    .eq("id", id);
+  const { data: before } = await supabase.from("project_templates").select("*").eq("id", id).single();
+  const updates = {
+    name: String(name).trim(),
+    description: description?.trim() || null,
+    default_members: Array.isArray(default_members) ? default_members : [],
+    default_tasks: Array.isArray(default_tasks) ? default_tasks : [],
+  };
+  const { error } = await supabase.from("project_templates").update(updates).eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "project_template", entityId: Number(id),
+    entityName: before?.name || String(id), before, after: updates,
+  });
+  if (!ok) return NextResponse.json({ error: "Template diperbarui, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -79,8 +91,15 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID template wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("project_templates").select("*").eq("id", id).single();
   const { error } = await supabase.from("project_templates").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "project_template", entityId: Number(id),
+    entityName: before?.name || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Template dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

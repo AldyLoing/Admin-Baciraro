@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { logActivity } from "@/lib/admin/audit";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -15,8 +15,11 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient();
   let noteId = id ?? null;
+  let before: Record<string, unknown> | null = null;
 
   if (id) {
+    const { data: prev } = await supabase.from("meeting_notes").select("*").eq("id", id).single();
+    before = prev ?? null;
     const { error: err } = await supabase
       .from("meeting_notes")
       .update({
@@ -59,11 +62,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: id ? "update" : "create", entityType: "meeting",
+  const ok = await auditMutation({
+    supabase, admin, action: id ? "update" : "create", entityType: "meeting",
     entityId: noteId, entityName: String(title).trim(),
+    before,
+    after: { title: String(title).trim(), date, agenda: agenda?.trim() || null, notes: notes?.trim() || null, project_id: project_id || null, attendees: attendeeIds },
   });
+  if (!ok) return NextResponse.json({ error: "Rapat tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -76,8 +81,15 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("meeting_notes").select("*").eq("id", id).single();
   const { error } = await supabase.from("meeting_notes").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "meeting", entityId: Number(id),
+    entityName: before?.title || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Rapat dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

@@ -269,6 +269,9 @@ export default function MembersManager({ members, isAdmin }: Props) {
               <p className="text-xs text-white/50 truncate">
                 {m.role}{m.division ? ` · ${m.division}` : ""}{m.is_admin ? " · Admin" : ""}
               </p>
+              {m.username && (
+                <p className="text-[11px] text-white/35 truncate">@{m.username}</p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={() => openEdit(m)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Ubah">

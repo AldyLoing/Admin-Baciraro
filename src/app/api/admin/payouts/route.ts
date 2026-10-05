@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -113,6 +114,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "payout", entityId: payout.id,
+    entityName: `${project.name} — ${date}`,
+    after: { ...insertData, member_count: selected.length, nominal: nominal || null },
+  });
+  if (!ok) return NextResponse.json({ error: "Payout dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, id: payout.id, message: `Payout untuk "${project.name}" dibuat.` });
 }
 
@@ -124,8 +132,16 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("payouts").select("*").eq("id", id).single();
   const { error } = await supabase.from("payouts").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "payout", entityId: Number(id),
+    entityName: before ? `${before.project_name || "Payout"} — ${before.date}` : String(id),
+    before,
+  });
+  if (!ok) return NextResponse.json({ error: "Payout dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

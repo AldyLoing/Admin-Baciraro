@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { ensureIncomeFromProject } from "@/lib/admin/transactions";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
@@ -15,7 +16,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("projects")
-    .select("id, name, client_name, total_value, completed_at")
+    .select("id, name, client_name, total_value, status, completed_at")
     .eq("id", id)
     .single();
 
@@ -45,6 +46,15 @@ export async function PATCH(req: NextRequest) {
       admin.id
     );
   }
+
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "project", entityId: Number(id),
+    entityName: existing.name,
+    before: { status: existing.status, completed_at: existing.completed_at },
+    after: { status, completed_at },
+    extra: { income_recorded: incomeRecorded },
+  });
+  if (!ok) return NextResponse.json({ error: "Status tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, incomeRecorded });
 }

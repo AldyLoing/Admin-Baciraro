@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getAuthorizedClient, createGcalEvent, updateGcalEvent, deleteGcalEvent } from "@/lib/admin/gcal";
-import { logActivity, createNotification } from "@/lib/admin/audit";
+import { auditMutation, createNotification } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -49,11 +49,17 @@ export async function POST(req: NextRequest) {
     console.warn("Google Calendar: gagal membuat event.", e);
   }
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: "create", entityType: "task",
+  const okCreate = await auditMutation({
+    supabase, admin, action: "create", entityType: "task",
     entityId: task.id, entityName: String(title).trim(),
+    after: {
+      title: String(title).trim(), description: description?.trim() || null,
+      project_id: project_id || null, assigned_to: assigned_to || null,
+      due_date: due_date || null, priority: ["low", "medium", "high"].includes(priority) ? priority : "medium",
+      gcal_event_id: gcalEventId,
+    },
   });
+  if (!okCreate) return NextResponse.json({ error: "Tugas dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   if (assigned_to) {
     await createNotification({
@@ -95,20 +101,22 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existingTask } = await supabase
     .from("tasks")
-    .select("gcal_event_id, title, description, due_date, assigned_to")
+    .select("*")
     .eq("id", id)
     .single();
 
   const { error } = await supabase.from("tasks").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal update tugas: " + error.message }, { status: 400 });
 
-  if (status === "completed") {
-    await logActivity({
-      supabase, userId: admin.id, userName: admin.name,
-      action: "complete", entityType: "task",
-      entityId: id, entityName: updates.title ?? existingTask?.title ?? "",
-    });
-  }
+  const okUpdate = await auditMutation({
+    supabase, admin,
+    action: status === "completed" ? "complete" : "update",
+    entityType: "task",
+    entityId: id, entityName: updates.title ?? existingTask?.title ?? "",
+    before: existingTask,
+    after: updates,
+  });
+  if (!okUpdate) return NextResponse.json({ error: "Tugas diperbarui, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   let gcalUpdated = false;
   if (existingTask?.gcal_event_id) {
@@ -146,18 +154,18 @@ export async function DELETE(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existingTask } = await supabase
     .from("tasks")
-    .select("gcal_event_id, title")
+    .select("*")
     .eq("id", id)
     .single();
 
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: "delete", entityType: "task",
-    entityId: id, entityName: existingTask?.title ?? "",
+  const okDelete = await auditMutation({
+    supabase, admin, action: "delete", entityType: "task",
+    entityId: id, entityName: existingTask?.title ?? "", before: existingTask,
   });
+  if (!okDelete) return NextResponse.json({ error: "Tugas dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   let gcalDeleted = false;
   if (existingTask?.gcal_event_id) {

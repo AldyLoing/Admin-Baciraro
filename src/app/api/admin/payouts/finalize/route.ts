@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
-import { logActivity } from "@/lib/admin/audit";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: payout } = await supabase
     .from("payouts")
-    .select("id, status")
+    .select("id, status, project_name, date, total_amount, orders_fee, net_amount, kas_optional_percent, kas_optional_amount, finalized_at")
     .eq("id", id)
     .single();
   if (!payout) return NextResponse.json({ error: "Payout tidak ditemukan." }, { status: 404 });
@@ -36,16 +36,18 @@ export async function PATCH(req: NextRequest) {
   const kasOpt = Number(kas_optional_percent) || 0;
   const dist = calculateDistribution(actual, contribs, kasOpt);
 
+  const finalizedAt = new Date().toISOString();
+  const updates = {
+    total_amount: Number(dist.total.toFixed(2)),
+    orders_fee: Number(dist.kasAmount.toFixed(2)),
+    kas_optional_percent: kasOpt,
+    kas_optional_amount: Number(dist.kasOptionalAmount.toFixed(2)),
+    net_amount: Number(dist.distributable.toFixed(2)),
+    finalized_at: finalizedAt,
+  };
   const { error: err } = await supabase
     .from("payouts")
-    .update({
-      total_amount: Number(dist.total.toFixed(2)),
-      orders_fee: Number(dist.kasAmount.toFixed(2)),
-      kas_optional_percent: kasOpt,
-      kas_optional_amount: Number(dist.kasOptionalAmount.toFixed(2)),
-      net_amount: Number(dist.distributable.toFixed(2)),
-      finalized_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", id);
   if (err) {
     return NextResponse.json({ error: "Gagal menyimpan total riil: " + err.message }, { status: 400 });
@@ -66,12 +68,13 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: "finalize", entityType: "payout",
-    entityId: id, entityName: "",
-    details: { actual_total: actual, kas_optional_percent: kasOpt },
+  const okFinalize = await auditMutation({
+    supabase, admin, action: "finalize", entityType: "payout",
+    entityId: id, entityName: payout.project_name || `payout ${id}`,
+    before: payout, after: updates,
+    extra: { actual_total: actual, kas_optional_percent: kasOpt },
   });
+  if (!okFinalize) return NextResponse.json({ error: "Total riil tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({
     ok: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { generateReference } from "@/lib/admin/transactions";
+import { auditMutation } from "@/lib/admin/audit";
 
 async function createJournalEntry(
   supabase: any,
@@ -110,6 +111,12 @@ export async function POST(req: NextRequest) {
     // journal entry is optional, transaction already saved
   }
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "transaction", entityId: tx.id, entityName: reference,
+    after: { date, type, amount: value, source: String(source).trim(), description: description?.trim() ?? "", project_id: project_id || null, account_code: defaultAccountCode },
+  });
+  if (!ok) return NextResponse.json({ error: "Transaksi dicatat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, reference });
 }
 
@@ -129,20 +136,25 @@ export async function PATCH(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("transactions")
-    .update({
-      date,
-      type,
-      amount: value,
-      source: String(source).trim(),
-      description: description?.trim() ?? "",
-      project_id: project_id || null,
-      account_code: account_code || (type === "income" ? 4101 : 5119),
-    })
-    .eq("id", id);
+  const { data: before } = await supabase.from("transactions").select("*").eq("id", id).single();
+  const updates = {
+    date,
+    type,
+    amount: value,
+    source: String(source).trim(),
+    description: description?.trim() ?? "",
+    project_id: project_id || null,
+    account_code: account_code || (type === "income" ? 4101 : 5119),
+  };
+  const { error } = await supabase.from("transactions").update(updates).eq("id", id);
 
   if (error) return NextResponse.json({ error: "Gagal memperbarui transaksi: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "transaction", entityId: Number(id),
+    entityName: before?.reference || String(id), before, after: updates,
+  });
+  if (!ok) return NextResponse.json({ error: "Transaksi diperbarui, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -155,10 +167,17 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("transactions").select("*").eq("id", id).single();
 
   await supabase.from("journal_entries").delete().eq("transaction_id", id);
   const { error } = await supabase.from("transactions").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "transaction", entityId: Number(id),
+    entityName: before?.reference || String(id), before,
+  });
+  if (!ok) return NextResponse.json({ error: "Transaksi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

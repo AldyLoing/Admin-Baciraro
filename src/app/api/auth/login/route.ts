@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 const SECRET = process.env.JWT_SECRET || "baciraro-secret-dev";
 
@@ -42,8 +43,26 @@ export async function POST(req: NextRequest) {
     !user.password.startsWith("$2") ||
     !bcrypt.compareSync(password, user.password)
   ) {
+    // percobaan gagal dicatat best-effort (tidak mengubah respons auth)
+    const { error: logErr } = await supabase.from("activity_log").insert({
+      user_id: user?.id ?? null,
+      user_name: user?.name || u,
+      action: "login_failed",
+      entity_type: "session",
+      entity_id: null,
+      entity_name: u,
+      details: { reason: user ? "password_salah" : "akun_tidak_ditemukan" },
+    });
+    if (logErr) console.error("[audit] gagal catat login_failed:", logErr.message);
     return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
   }
+
+  const ok = await auditMutation({
+    supabase, admin: { id: user.id, name: user.name },
+    action: "login", entityType: "session", entityId: user.id, entityName: user.name,
+    after: { username: user.username, is_admin: user.is_admin },
+  });
+  if (!ok) return NextResponse.json({ error: "Login berhasil dicatat, tetapi audit gagal. Coba lagi." }, { status: 500 });
 
   const token = jwt.sign({ id: user.id, username: user.username, name: user.name }, SECRET, { expiresIn: "7d" });
 

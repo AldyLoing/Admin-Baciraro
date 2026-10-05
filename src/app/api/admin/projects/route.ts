@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { ensureIncomeFromProject } from "@/lib/admin/transactions";
-import { logActivity, createNotification } from "@/lib/admin/audit";
+import { auditMutation, createNotification } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -89,12 +89,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: "create", entityType: "project",
+  const okCreate = await auditMutation({
+    supabase, admin, action: "create", entityType: "project",
     entityId: project.id, entityName: String(name).trim(),
-    details: { total_value: value, client_name: client_name?.trim() || null },
+    after: { name: String(name).trim(), client_name: client_name?.trim() || null, description: description?.trim() || null, total_value: value, status: status || "active", members: membersList.length },
   });
+  if (!okCreate) return NextResponse.json({ error: "Project dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   if (membersList.length > 0) {
     for (const m of membersList) {
@@ -134,7 +134,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("projects")
-    .select("id, name, client_name, total_value, completed_at")
+    .select("id, name, client_name, description, total_value, status, completed_at")
     .eq("id", id)
     .single();
 
@@ -167,13 +167,16 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
+  const okUpdate = await auditMutation({
+    supabase, admin,
     action: status === "completed" ? "complete" : status === "paid" ? "mark_paid" : "update",
     entityType: "project",
     entityId: id, entityName: String(name).trim(),
-    details: { status, total_value: value },
+    before: { name: existing.name, client_name: existing.client_name, description: existing.description, total_value: existing.total_value, status: existing.status, completed_at: existing.completed_at },
+    after: { name: String(name).trim(), client_name: client_name?.trim() || null, description: description?.trim() || null, total_value: value, status, completed_at },
+    extra: { income_recorded: incomeRecorded },
   });
+  if (!okUpdate) return NextResponse.json({ error: "Perubahan tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   if (status === "completed" || status === "paid") {
     const { data: pm } = await supabase.from("project_members").select("member_id").eq("project_id", id);
@@ -203,15 +206,19 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: proj } = await supabase.from("projects").select("name").eq("id", id).single();
+  const { data: proj } = await supabase
+    .from("projects")
+    .select("id, name, client_name, description, total_value, status")
+    .eq("id", id)
+    .single();
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await logActivity({
-    supabase, userId: admin.id, userName: admin.name,
-    action: "delete", entityType: "project",
-    entityId: id, entityName: proj?.name ?? "",
+  const okDelete = await auditMutation({
+    supabase, admin, action: "delete", entityType: "project",
+    entityId: id, entityName: proj?.name ?? "", before: proj,
   });
+  if (!okDelete) return NextResponse.json({ error: "Project dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

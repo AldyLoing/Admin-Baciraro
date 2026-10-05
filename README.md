@@ -117,6 +117,18 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 8. `supabase-double-entry.sql` — pembukuan double-entry
 9. `supabase-data-connections.sql` — koneksi data antar fitur
 10. `supabase-inventori.sql` — modul inventori barang (produk, mutasi stok, penjualan)
+11. `supabase-setval.sql` — reset sequence id ke MAX(id) (sekali jalan, setelah insert data manual/migrasi)
+12. `supabase-audit-immutable.sql` — trigger audit trail immutable: baris `activity_log` tidak bisa di-update/di-delete (sekali jalan; hanya transisi `user_id → NULL` yang diizinkan)
+
+### Buat Akun Anggota (sekali jalan)
+
+Setelah migration di atas selesai, jalankan untuk membuat akun login 17 anggota non-admin
+(username dari nama, password acak 12 karakter — **hanya dicetak sekali di terminal**,
+semua dapat akses penuh `is_admin=true`):
+
+```bash
+node scripts/create-member-accounts.mjs
+```
 
 ### Run Development
 

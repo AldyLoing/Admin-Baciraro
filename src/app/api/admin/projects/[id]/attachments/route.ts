@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function GET(
   _req: Request,
@@ -57,6 +58,13 @@ export async function POST(
     .eq("id", id);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "attachment", entityId: Number(id),
+    entityName: name, after: newAttachment, extra: { project_id: Number(id) },
+  });
+  if (!ok) return NextResponse.json({ ok: false, error: "File tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, attachments: updated });
 }
 
@@ -84,6 +92,7 @@ export async function DELETE(
   const existing = (current?.attachments as Array<{ name: string; url: string; size: number; uploaded_at: string }>) ?? [];
   if (index < 0 || index >= existing.length) return NextResponse.json({ ok: false, error: "Index invalid." }, { status: 400 });
 
+  const removed = existing[index];
   const updated = existing.filter((_, i) => i !== index);
   const { error } = await supabase
     .from("projects")
@@ -91,5 +100,12 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "attachment", entityId: Number(id),
+    entityName: removed?.name || `index ${index}`, before: removed ?? null, extra: { project_id: Number(id) },
+  });
+  if (!ok) return NextResponse.json({ ok: false, error: "File dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, attachments: updated });
 }

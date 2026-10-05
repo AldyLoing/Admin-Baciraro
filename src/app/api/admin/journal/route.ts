@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin();
@@ -97,6 +98,13 @@ export async function POST(req: NextRequest) {
   const { error: lineError } = await supabase.from("journal_entry_lines").insert(lineRows);
   if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "journal_entry", entityId: entry.id,
+    entityName: String(reference || description).trim(),
+    after: { date, description: String(description).trim(), reference: reference?.trim() ?? "", total_debit: totalDebit, total_credit: totalCredit, lines: lineRows },
+  });
+  if (!ok) return NextResponse.json({ error: "Jurnal dicatat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true, id: entry.id });
 }
 
@@ -108,8 +116,21 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase
+    .from("journal_entries")
+    .select("*, journal_entry_lines(*)")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("journal_entries").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "journal_entry", entityId: Number(id),
+    entityName: before ? (String(before.reference || before.description) || String(id)) : String(id),
+    before,
+  });
+  if (!ok) return NextResponse.json({ error: "Jurnal dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

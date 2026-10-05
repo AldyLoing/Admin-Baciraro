@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 const CLAIM_BASE = process.env.NEXT_PUBLIC_CLAIM_BASE_URL || "https://admin-baciraro-zeta.vercel.app";
 
@@ -81,6 +82,13 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Gagal membuat QR: " + error.message }, { status: 400 });
 
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "qr_event", entityId: data.id,
+    entityName: data.event_name || data.code.slice(0, 8),
+    after: { code: data.code, event_name: data.event_name, event_points: data.event_points },
+  });
+  if (!ok) return NextResponse.json({ error: "QR dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({
     qr: {
       ...data,
@@ -105,7 +113,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("qr_codes")
-    .select("id, is_event, event_name, event_points")
+    .select("id, is_event, code, event_name, event_points")
     .eq("id", id)
     .eq("is_event", true)
     .single();
@@ -127,6 +135,15 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Gagal membuat QR baru: " + error.message }, { status: 400 });
 
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "qr_event", entityId: existing.id,
+    entityName: existing.event_name || existing.code.slice(0, 8),
+    before: { code: existing.code, event_points: existing.event_points },
+    after: { code: data.code, event_points: data.event_points },
+    extra: { note: "QR diganti (rotate), QR lama tetap ada sampai dihapus" },
+  });
+  if (!ok) return NextResponse.json({ error: "QR dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({
     qr: {
       ...data,
@@ -146,7 +163,7 @@ export async function DELETE(req: NextRequest) {
 
   const { data: existing } = await supabase
     .from("qr_codes")
-    .select("id, claimed_at")
+    .select("id, claimed_at, code, event_name, event_points")
     .eq("id", id)
     .eq("is_event", true)
     .single();
@@ -158,6 +175,13 @@ export async function DELETE(req: NextRequest) {
 
   const { error } = await supabase.from("qr_codes").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "qr_event", entityId: existing.id,
+    entityName: existing.event_name || existing.code.slice(0, 8),
+    before: { code: existing.code, event_name: existing.event_name, event_points: existing.event_points },
+  });
+  if (!ok) return NextResponse.json({ error: "QR dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

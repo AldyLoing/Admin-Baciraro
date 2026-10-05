@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { auditMutation } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -43,16 +44,23 @@ export async function POST(req: NextRequest) {
     resolvedName = tm?.name ?? "";
   }
 
-  const { error } = await supabase.from("project_members").insert({
+  const after = {
     project_id,
     member_id: memberId,
     name: resolvedName || null,
     contribution_percent: percent,
     amount: amount === "" || amount == null ? null : Number(amount),
     tugas: tugas === "" || tugas == null ? null : String(tugas).trim(),
-  });
+  };
+  const { data: created, error } = await supabase.from("project_members").insert(after).select("id").single();
 
   if (error) return NextResponse.json({ error: "Gagal menambahkan anggota: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "create", entityType: "project_member", entityId: created.id,
+    entityName: resolvedName || `project ${project_id}`, after,
+  });
+  if (!ok) return NextResponse.json({ error: "Anggota ditambahkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -67,7 +75,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("project_members")
-    .select("id, project_id, contribution_percent")
+    .select("*")
     .eq("id", id)
     .single();
   if (!existing) return NextResponse.json({ error: "Kontributor tidak ditemukan." }, { status: 404 });
@@ -108,6 +116,14 @@ export async function PATCH(req: NextRequest) {
   const { error } = await supabase.from("project_members").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal memperbarui: " + error.message }, { status: 400 });
 
+  const ok = await auditMutation({
+    supabase, admin, action: "update", entityType: "project_member", entityId: Number(id),
+    entityName: existing.name || `project ${existing.project_id}`,
+    before: { contribution_percent: existing.contribution_percent, amount: existing.amount, tugas: existing.tugas },
+    after: updates,
+  });
+  if (!ok) return NextResponse.json({ error: "Perubahan tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -119,8 +135,16 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
 
   const supabase = createAdminClient();
+  const { data: before } = await supabase.from("project_members").select("*").eq("id", id).single();
   const { error } = await supabase.from("project_members").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+
+  const ok = await auditMutation({
+    supabase, admin, action: "delete", entityType: "project_member", entityId: Number(id),
+    entityName: before ? (before.name || `project ${before.project_id}`) : String(id),
+    before,
+  });
+  if (!ok) return NextResponse.json({ error: "Anggota dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

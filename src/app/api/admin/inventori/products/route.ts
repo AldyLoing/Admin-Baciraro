@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { journalForMovement } from "@/lib/admin/inventori";
-import { logActivity } from "@/lib/admin/audit";
+import { auditMutation } from "@/lib/admin/audit";
 
 const PRODUCT_SELECT =
   "id, sku, name, category, unit, harga_modal, harga_jual, stok, stok_min, is_active, notes, created_at, updated_at";
@@ -102,16 +102,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "create",
-    entityType: "product",
-    entityId: product.id,
-    entityName: name,
-    details: { stok_awal: stokAwal },
+  const okCreate = await auditMutation({
+    supabase, admin, action: "create", entityType: "product",
+    entityId: product.id, entityName: name,
+    after: { sku, name, category, unit, harga_modal: hargaModal, harga_jual: hargaJual, stok: stokAwal, stok_min: stokMin, notes },
+    extra: { stok_awal: stokAwal },
   });
+  if (!okCreate) return NextResponse.json({ error: "Barang dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, id: product.id });
 }
@@ -152,7 +149,7 @@ export async function PATCH(req: NextRequest) {
   if (body.is_active !== undefined) patch.is_active = !!body.is_active;
 
   const supabase = createAdminClient();
-  const { data: before, error: fetchError } = await supabase.from("inventory_items").select("name").eq("id", id).single();
+  const { data: before, error: fetchError } = await supabase.from("inventory_items").select("*").eq("id", id).single();
   if (fetchError || !before) return NextResponse.json({ error: "Barang tidak ditemukan." }, { status: 404 });
 
   const { error } = await supabase.from("inventory_items").update(patch).eq("id", id);
@@ -161,15 +158,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Gagal memperbarui barang: " + msg }, { status: 400 });
   }
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "update",
-    entityType: "product",
-    entityId: id,
-    entityName: String(patch.name ?? before.name),
+  const okUpdate = await auditMutation({
+    supabase, admin, action: "update", entityType: "product",
+    entityId: id, entityName: String(patch.name ?? before.name),
+    before, after: patch,
   });
+  if (!okUpdate) return NextResponse.json({ error: "Barang diperbarui, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
@@ -195,19 +189,15 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  const { data: before } = await supabase.from("inventory_items").select("name").eq("id", id).single();
+  const { data: before } = await supabase.from("inventory_items").select("*").eq("id", id).single();
   const { error } = await supabase.from("inventory_items").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
 
-  await logActivity({
-    supabase,
-    userId: admin.id,
-    userName: admin.name ?? "",
-    action: "delete",
-    entityType: "product",
-    entityId: id,
-    entityName: before?.name ?? "",
+  const okDelete = await auditMutation({
+    supabase, admin, action: "delete", entityType: "product",
+    entityId: id, entityName: before?.name ?? "", before,
   });
+  if (!okDelete) return NextResponse.json({ error: "Barang dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
