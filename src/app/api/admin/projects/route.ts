@@ -127,7 +127,7 @@ export async function PATCH(req: NextRequest) {
   if (isNaN(value) || value < 0) {
     return NextResponse.json({ error: "Nilai project tidak boleh negatif." }, { status: 400 });
   }
-  if (!["active", "completed", "paid"].includes(status)) {
+  if (!["active", "completed", "paid", "archived"].includes(status)) {
     return NextResponse.json({ error: "Status tidak valid." }, { status: 400 });
   }
 
@@ -179,7 +179,7 @@ export async function PATCH(req: NextRequest) {
   if (!okUpdate) return NextResponse.json({ error: "Perubahan tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   if (status === "completed" || status === "paid") {
-    const { data: pm } = await supabase.from("project_members").select("member_id").eq("project_id", id);
+    const { data: pm } = await supabase.from("project_members").select("member_id").eq("project_id", id).is("removed_at", null);
     if (pm) {
       for (const m of pm) {
         if (m.member_id) {
@@ -211,14 +211,18 @@ export async function DELETE(req: NextRequest) {
     .select("id, name, client_name, description, total_value, status")
     .eq("id", id)
     .single();
-  const { error } = await supabase.from("projects").delete().eq("id", id);
+  if (!proj) return NextResponse.json({ error: "Project tidak ditemukan." }, { status: 404 });
+  if (proj.status === "archived") return NextResponse.json({ error: "Project sudah diarsipkan." }, { status: 400 });
+
+  const updates = { status: "archived" };
+  const { error } = await supabase.from("projects").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const okDelete = await auditMutation({
-    supabase, admin, action: "delete", entityType: "project",
-    entityId: id, entityName: proj?.name ?? "", before: proj,
+    supabase, admin, action: "archive", entityType: "project",
+    entityId: id, entityName: proj?.name ?? "", before: proj, after: updates,
   });
-  if (!okDelete) return NextResponse.json({ error: "Project dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!okDelete) return NextResponse.json({ error: "Project diarsipkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

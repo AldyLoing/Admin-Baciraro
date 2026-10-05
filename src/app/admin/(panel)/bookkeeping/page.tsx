@@ -12,6 +12,7 @@ export default async function AdminBookkeepingPage() {
     supabase
       .from("journal_entries")
       .select("date, description, reference, total_debit, total_credit, journal_entry_lines(account_code, debit, credit)")
+      .eq("status", "active")
       .order("date", { ascending: true })
       .order("created_at", { ascending: true }),
     supabase

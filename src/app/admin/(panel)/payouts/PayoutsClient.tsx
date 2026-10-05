@@ -12,7 +12,7 @@ type Payout = {
   total_amount: number;
   orders_fee: number;
   net_amount: number;
-  status: "pending" | "processing" | "paid";
+  status: "pending" | "processing" | "paid" | "cancelled";
   finalized_at: string | null;
   created_at: string;
 };
@@ -42,11 +42,12 @@ type Props = {
   preselectProjectId?: string | null;
 };
 
-const statusLabel: Record<string, string> = { pending: "Menunggu", processing: "Diproses", paid: "Dibayar" };
+const statusLabel: Record<string, string> = { pending: "Menunggu", processing: "Diproses", paid: "Dibayar", cancelled: "Dibatalkan" };
 const statusColor: Record<string, string> = {
   pending: "bg-amber-500/10 text-amber-400",
   processing: "bg-blue-500/10 text-blue-400",
   paid: "bg-emerald-500/10 text-emerald-400",
+  cancelled: "bg-red-500/10 text-red-400",
 };
 
 const inputCls =
@@ -66,7 +67,7 @@ export default function PayoutsClient({
   const router = useRouter();
   const [rows, setRows] = useState(payouts);
   const [members, setMembers] = useState(payoutMembers);
-  const [filter, setFilter] = useState<"all" | "pending" | "processing" | "paid">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "processing" | "paid" | "cancelled">("all");
   const [showForm, setShowForm] = useState(Boolean(preselectProjectId));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState({ project_id: preselectProjectId ?? "", date: new Date().toISOString().slice(0, 10), total_amount: "" });
@@ -225,17 +226,17 @@ export default function PayoutsClient({
   }
 
   async function removePayout(id: string) {
-    if (!confirm("Hapus payout ini? Rincian per member ikut terhapus.")) return;
+    if (!confirm("Batalkan payout ini? Rincian per member tetap tersimpan.")) return;
     const res = await fetch("/api/admin/payouts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) { showError("Gagal menghapus: " + (data.error ?? "unknown")); return; }
-    setRows((prev) => prev.filter((p) => p.id !== id));
-    setMembers((prev) => prev.filter((m) => m.payout_id !== id));
-    showSuccess("Payout dihapus.");
+    if (!res.ok || !data.ok) { showError("Gagal membatalkan: " + (data.error ?? "unknown")); return; }
+    setRows((prev) => prev.map((p) => (p.id === id ? { ...p, status: "cancelled" as const } : p)));
+    setExpanded((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    showSuccess("Payout dibatalkan.");
     router.refresh();
   }
 
@@ -532,7 +533,7 @@ export default function PayoutsClient({
       )}
 
       <div className="flex gap-2 mb-6 print:hidden">
-        {(["all", "pending", "processing", "paid"] as const).map((f) => (
+        {(["all", "pending", "processing", "paid", "cancelled"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === f ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white" : "bg-[#151515] border border-white/10 text-white/60 hover:bg-white/5"}`}>
             {f === "all" ? "Semua" : statusLabel[f]}
@@ -592,8 +593,14 @@ export default function PayoutsClient({
                         Tandai Dibayar
                       </button>
                     )}
-                    {isAdmin && (
-                      <button onClick={() => removePayout(p.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                    {isAdmin && p.status === "cancelled" && (
+                      <button onClick={() => updateStatus(p.id, "pending")}
+                        className="px-3 py-1.5 rounded-lg border border-white/20 text-white/70 text-xs font-medium hover:bg-white/10 transition">
+                        Pulihkan
+                      </button>
+                    )}
+                    {isAdmin && p.status !== "cancelled" && p.status !== "paid" && (
+                      <button onClick={() => removePayout(p.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Batalkan">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>

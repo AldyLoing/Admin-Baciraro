@@ -103,11 +103,6 @@ export async function insertJournalEntry(
   return entry.id as number;
 }
 
-export async function deleteJournalEntry(supabase: Supabase, id: number | null | undefined) {
-  if (!id) return;
-  await supabase.from("journal_entries").delete().eq("id", id);
-}
-
 /** Nomor penjualan: SL-YYYY-NNN (berbeda dari INV kas). */
 export async function generateSaleReference(supabase: Supabase, year: number): Promise<string> {
   const prefix = `SL-${year}-`;

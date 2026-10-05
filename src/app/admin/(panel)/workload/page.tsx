@@ -21,7 +21,8 @@ export default async function AdminWorkloadPage() {
       .in("status", ["pending", "active"]),
     supabase
       .from("project_members")
-      .select("member_id, contribution_percent"),
+      .select("member_id, contribution_percent")
+      .is("removed_at", null),
   ]);
 
   return (

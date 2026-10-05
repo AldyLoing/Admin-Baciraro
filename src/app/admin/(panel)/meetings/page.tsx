@@ -11,7 +11,7 @@ export default async function AdminMeetingsPage() {
   const [{ data: notes }, { data: attendees }, { data: actionItems }, { data: members }, { data: projects }] = await Promise.all([
     supabase
       .from("meeting_notes")
-      .select("id, title, date, agenda, notes, project_id, created_at")
+      .select("id, title, date, agenda, notes, project_id, created_at, status")
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase
@@ -20,6 +20,7 @@ export default async function AdminMeetingsPage() {
     supabase
       .from("action_items")
       .select("id, meeting_note_id, task, assigned_to, due_date, status")
+      .neq("status", "removed")
       .order("created_at", { ascending: true }),
     supabase
       .from("team_members")
@@ -41,6 +42,7 @@ export default async function AdminMeetingsPage() {
         notes: n.notes,
         project_id: n.project_id,
         created_at: n.created_at,
+        status: n.status || "active",
       }))}
       attendees={(attendees ?? []).map((a) => ({
         id: a.id,

@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     .from("notifications")
     .select("*")
     .eq("user_id", admin.id)
+    .eq("archived", false)
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -67,19 +68,23 @@ export async function DELETE(req: NextRequest) {
     .eq("id", id)
     .eq("user_id", admin.id)
     .single();
+  if (!before) return NextResponse.json({ error: "Notifikasi tidak ditemukan." }, { status: 404 });
+  if (before.archived) return NextResponse.json({ error: "Notifikasi sudah diarsipkan." }, { status: 400 });
+
+  const updates = { archived: true };
   const { error } = await supabase
     .from("notifications")
-    .delete()
+    .update(updates)
     .eq("id", id)
     .eq("user_id", admin.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "notification", entityId: Number(id),
-    entityName: before?.type || String(id), before,
+    supabase, admin, action: "archive", entityType: "notification", entityId: Number(id),
+    entityName: before?.type || String(id), before, after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "Notifikasi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Notifikasi diarsipkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

@@ -91,21 +91,16 @@ export async function DELETE(req: NextRequest) {
   const { data: before } = await supabase.from("accounts").select("*").eq("id", id).single();
   if (!before) return NextResponse.json({ error: "Akun tidak ditemukan." }, { status: 404 });
 
-  const { data: lines } = await supabase
-    .from("journal_entry_lines")
-    .select("id")
-    .eq("account_code", before.code)
-    .limit(1);
-
-  if (lines && lines.length > 0) {
-    return NextResponse.json({ error: "Akun tidak bisa dihapus karena masih digunakan di jurnal." }, { status: 400 });
+  if (before.is_active === false) {
+    return NextResponse.json({ error: "Akun sudah nonaktif." }, { status: 400 });
   }
 
-  const { error } = await supabase.from("accounts").delete().eq("id", id);
+  const updates = { is_active: false };
+  const { error } = await supabase.from("accounts").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const ok = await auditMutation({ supabase, admin, action: "delete", entityType: "account", entityId: Number(id), entityName: `${before.code} — ${before.name}`, before });
-  if (!ok) return NextResponse.json({ error: "Akun dihapus, tetapi pencatatan audit gagal. Periksa log server." }, { status: 500 });
+  const ok = await auditMutation({ supabase, admin, action: "deactivate", entityType: "account", entityId: Number(id), entityName: `${before.code} — ${before.name}`, before, after: updates });
+  if (!ok) return NextResponse.json({ error: "Akun dinonaktifkan, tetapi pencatatan audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

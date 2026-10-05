@@ -13,7 +13,7 @@ export default async function ReportsPage() {
 
   const [projectsRes, transactionsRes, payoutsRes, payoutMembersRes] = await Promise.all([
     supabase.from("projects").select("id, name, client_name, total_value, status, created_at, completed_at"),
-    supabase.from("transactions").select("id, date, type, amount, source, description, project_id").order("date", { ascending: true }),
+    supabase.from("transactions").select("id, date, type, amount, source, description, project_id").eq("status", "active").order("date", { ascending: true }),
     supabase.from("payouts").select("id, project_id, project_name, date, total_amount, orders_fee, net_amount, status, finalized_at, kas_optional_amount").order("date", { ascending: true }),
     supabase.from("payout_members").select("id, payout_id, member_id, name, amount, contribution_percent"),
   ]);
@@ -28,7 +28,7 @@ export default async function ReportsPage() {
     const tx = transactions.filter((t) => t.project_id === p.id);
     const inc = tx.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
     const exp = tx.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-    const kas = payouts.filter((po) => po.project_id === p.id).reduce((s, po) => s + Number(po.orders_fee || 0), 0);
+    const kas = payouts.filter((po) => po.project_id === p.id && po.status !== "cancelled").reduce((s, po) => s + Number(po.orders_fee || 0), 0);
     const netIncome = inc - exp;
     return { id: p.id, name: p.name, client_name: p.client_name, status: p.status, income: inc, expense: exp, kas, net: netIncome, distribusi: netIncome - kas };
   }).filter((p) => p.income > 0 || p.expense > 0);

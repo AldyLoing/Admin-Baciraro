@@ -57,6 +57,7 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
   }
 
   async function remove(id: string | number) {
+    if (!confirm("Arsipkan notifikasi ini? Notifikasi tidak akan muncul lagi di daftar.")) return;
     const res = await fetch("/api/admin/notifications", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

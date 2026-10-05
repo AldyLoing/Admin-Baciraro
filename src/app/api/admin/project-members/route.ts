@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
   const { data: members } = await supabase
     .from("project_members")
     .select("contribution_percent")
-    .eq("project_id", project_id);
+    .eq("project_id", project_id)
+    .is("removed_at", null);
 
   const currentTotal = (members ?? []).reduce((s: number, m: any) => s + Number(m.contribution_percent), 0);
   if (currentTotal + percent > 100) {
@@ -52,9 +53,36 @@ export async function POST(req: NextRequest) {
     amount: amount === "" || amount == null ? null : Number(amount),
     tugas: tugas === "" || tugas == null ? null : String(tugas).trim(),
   };
-  const { data: created, error } = await supabase.from("project_members").insert(after).select("id").single();
+  let created: { id: number } | null = null;
+  let error: { message: string } | null = null;
+  if (memberId) {
+    const { data: prev } = await supabase
+      .from("project_members")
+      .select("id, removed_at")
+      .eq("project_id", project_id)
+      .eq("member_id", memberId)
+      .maybeSingle();
+    if (prev && prev.removed_at) {
+      const { data: readded, error: readdErr } = await supabase
+        .from("project_members")
+        .update({ ...after, removed_at: null })
+        .eq("id", prev.id)
+        .select("id")
+        .single();
+      created = readded;
+      error = readdErr;
+    } else if (prev) {
+      return NextResponse.json({ error: "Anggota sudah terdaftar di project ini." }, { status: 400 });
+    }
+  }
+  if (!created && !error) {
+    const ins = await supabase.from("project_members").insert(after).select("id").single();
+    created = ins.data;
+    error = ins.error;
+  }
 
   if (error) return NextResponse.json({ error: "Gagal menambahkan anggota: " + error.message }, { status: 400 });
+  if (!created) return NextResponse.json({ error: "Gagal menambahkan anggota." }, { status: 500 });
 
   const ok = await auditMutation({
     supabase, admin, action: "create", entityType: "project_member", entityId: created.id,
@@ -97,7 +125,8 @@ export async function PATCH(req: NextRequest) {
         .from("project_members")
         .select("contribution_percent")
         .eq("project_id", existing.project_id)
-        .neq("id", id);
+        .neq("id", id)
+        .is("removed_at", null);
       const otherTotal = (members ?? []).reduce((s: number, m: { contribution_percent: number | string }) => s + Number(m.contribution_percent), 0);
       if (otherTotal + percent > 100) {
         return NextResponse.json(
@@ -136,15 +165,19 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("project_members").select("*").eq("id", id).single();
-  const { error } = await supabase.from("project_members").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  if (!before) return NextResponse.json({ error: "Anggota tidak ditemukan." }, { status: 404 });
+  if (before.removed_at) return NextResponse.json({ error: "Anggota sudah dikeluarkan dari project ini." }, { status: 400 });
+
+  const updates = { removed_at: new Date().toISOString() };
+  const { error } = await supabase.from("project_members").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal mengeluarkan anggota: " + error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "project_member", entityId: Number(id),
+    supabase, admin, action: "remove", entityType: "project_member", entityId: Number(id),
     entityName: before ? (before.name || `project ${before.project_id}`) : String(id),
-    before,
+    before, after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "Anggota dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Anggota dikeluarkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

@@ -9,6 +9,7 @@ type EventQr = {
   event_name: string | null;
   event_points: number;
   claimed_at: string | null;
+  revoked_at: string | null;
   created_at: string;
   claim_url: string;
   used: boolean;
@@ -68,7 +69,7 @@ export default function QrEventClient() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Hapus QR yang belum terpakai ini?")) return;
+    if (!confirm("Cabut QR ini? QR tidak akan bisa diklaim lagi, tetapi tetap tersimpan di riwayat.")) return;
     const res = await fetch("/api/admin/event-qr", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -189,7 +190,9 @@ export default function QrEventClient() {
                   <p className="text-white font-medium truncate">{qr.event_name || "Baciraro Event"}</p>
                   <p className="text-[#D97A2B] font-bold">+{qr.event_points} koin</p>
                   <p className="text-xs text-white/40 mt-1">
-                    {qr.used ? (
+                    {qr.revoked_at ? (
+                      <span className="text-white/40">Dicabut</span>
+                    ) : qr.used ? (
                       <span className="text-red-400">Terpakai{qr.claimed_by ? ` oleh ${qr.claimed_by.name}` : ""}</span>
                     ) : (
                       <span className="text-emerald-400">Belum terpakai</span>
@@ -203,10 +206,10 @@ export default function QrEventClient() {
                     className="px-3 py-2 rounded-lg bg-white/10 text-sm text-white hover:bg-white/20">
                     Lihat
                   </button>
-                  {!qr.used && (
+                  {!qr.used && !qr.revoked_at && (
                     <button onClick={() => handleDelete(qr.id)}
                       className="px-3 py-2 rounded-lg bg-red-500/15 text-sm text-red-400 hover:bg-red-500/25">
-                      Hapus
+                      Cabut
                     </button>
                   )}
                 </div>

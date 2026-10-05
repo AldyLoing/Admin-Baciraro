@@ -92,14 +92,18 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("project_templates").select("*").eq("id", id).single();
-  const { error } = await supabase.from("project_templates").delete().eq("id", id);
+  if (!before) return NextResponse.json({ error: "Template tidak ditemukan." }, { status: 404 });
+  if (before.is_active === false) return NextResponse.json({ error: "Template sudah nonaktif." }, { status: 400 });
+
+  const updates = { is_active: false };
+  const { error } = await supabase.from("project_templates").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "project_template", entityId: Number(id),
-    entityName: before?.name || String(id), before,
+    supabase, admin, action: "deactivate", entityType: "project_template", entityId: Number(id),
+    entityName: before?.name || String(id), before, after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "Template dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Template dinonaktifkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

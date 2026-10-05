@@ -48,6 +48,14 @@ const statusColor: Record<string, string> = {
   pending: "bg-gray-500/10 text-gray-400",
   active: "bg-blue-500/10 text-blue-400",
   completed: "bg-emerald-500/10 text-emerald-400",
+  cancelled: "bg-red-500/10 text-red-400",
+};
+
+const statusTabLabel: Record<string, string> = {
+  pending: "Menunggu",
+  active: "Berjalan",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
 };
 
 const emptyForm = {
@@ -241,7 +249,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
   }
 
   async function remove(t: Task) {
-    if (!confirm(`Hapus tugas "${t.title}"?`)) return;
+    if (!confirm(`Batalkan tugas "${t.title}"? Tugas tidak dihapus, hanya berstatus dibatalkan.`)) return;
     const res = await fetch("/api/admin/tasks", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -471,14 +479,14 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
       )}
 
       <div className="flex flex-wrap gap-2 mb-6">
-        {["all", "pending", "active", "completed"].map((s) => (
+        {["all", "pending", "active", "completed", "cancelled"].map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               statusFilter === s
                 ? "bg-[#D97A2B] text-white"
                 : "border border-white/10 text-white/50 hover:bg-white/5"
             }`}>
-            {s === "all" ? "Semua" : s === "pending" ? "Menunggu" : s === "active" ? "Berjalan" : "Selesai"}
+            {s === "all" ? "Semua" : statusTabLabel[s]}
           </button>
         ))}
         <button onClick={() => setStatusFilter(statusFilter === "recurring" ? "all" : "recurring")}
@@ -492,15 +500,15 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
       </div>
 
       {viewMode === "kanban" ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(["pending", "active", "completed"] as const).map((col) => {
+        <div className={`grid grid-cols-1 gap-4 ${statusFilter === "cancelled" ? "md:grid-cols-1" : "md:grid-cols-3"}`}>
+          {(statusFilter === "cancelled" ? ["cancelled"] : ["pending", "active", "completed"]).map((col) => {
             const colTasks = filtered.filter((t) => t.status === col);
             return (
               <div key={col} className="bg-[#111] rounded-xl border border-white/10 p-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className={`w-2.5 h-2.5 rounded-full ${col === "pending" ? "bg-gray-400" : col === "active" ? "bg-blue-400" : "bg-emerald-400"}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full ${col === "pending" ? "bg-gray-400" : col === "active" ? "bg-blue-400" : col === "cancelled" ? "bg-red-400" : "bg-emerald-400"}`} />
                   <h3 className="text-sm font-semibold text-white">
-                    {col === "pending" ? "Menunggu" : col === "active" ? "Berjalan" : "Selesai"}
+                    {statusTabLabel[col] ?? col}
                   </h3>
                   <span className="ml-auto text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{colTasks.length}</span>
                 </div>
@@ -533,6 +541,9 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
                             )}
                             {col === "active" && (
                               <button onClick={() => setStatus(t, "completed")} className="text-[11px] text-emerald-400 hover:text-emerald-300 transition">Selesai</button>
+                            )}
+                            {col === "cancelled" && (
+                              <button onClick={() => setStatus(t, "pending")} className="text-[11px] text-white/60 hover:text-white transition">Pulihkan</button>
                             )}
                             <button onClick={() => openEdit(t)} className="ml-auto text-[11px] text-white/30 hover:text-[#E9A64E] transition">Ubah</button>
                           </div>
@@ -607,7 +618,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
                           {t.priority === "high" ? "Tinggi" : t.priority === "low" ? "Rendah" : "Sedang"}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${statusColor[t.status] ?? statusColor.pending}`}>
-                          {t.status === "completed" ? "Selesai" : t.status === "active" ? "Berjalan" : "Menunggu"}
+                          {statusTabLabel[t.status] ?? "Menunggu"}
                         </span>
                       </div>
                       {isAdmin && (
@@ -633,11 +644,15 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => remove(t)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {t.status === "cancelled" ? (
+                            <button onClick={() => setStatus(t, "pending")} className="px-2 py-1 rounded text-[11px] font-medium text-white/60 hover:text-white border border-white/10 hover:border-white/30 transition">Pulihkan</button>
+                          ) : (
+                            <button onClick={() => remove(t)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Batalkan tugas">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

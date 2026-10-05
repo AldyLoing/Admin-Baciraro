@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { auditMutation } from "@/lib/admin/audit";
+import { voidJournalEntry } from "@/lib/admin/void";
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin();
@@ -121,16 +122,19 @@ export async function DELETE(req: NextRequest) {
     .select("*, journal_entry_lines(*)")
     .eq("id", id)
     .single();
+  if (!before) return NextResponse.json({ error: "Jurnal tidak ditemukan." }, { status: 404 });
+  if (before.status === "void") return NextResponse.json({ error: "Jurnal sudah dibatalkan." }, { status: 400 });
 
-  const { error } = await supabase.from("journal_entries").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  const res = await voidJournalEntry(supabase, Number(id), admin.id);
+  if (!res.ok) return NextResponse.json({ error: "Gagal membatalkan: " + res.error }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "journal_entry", entityId: Number(id),
+    supabase, admin, action: "void", entityType: "journal_entry", entityId: Number(id),
     entityName: before ? (String(before.reference || before.description) || String(id)) : String(id),
     before,
+    after: { ...before, status: "void", reversal_entry_id: res.reversalId },
   });
-  if (!ok) return NextResponse.json({ error: "Jurnal dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Jurnal dibatalkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

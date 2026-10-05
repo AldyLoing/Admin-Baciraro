@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, status } = await req.json();
-  if (!id || !["pending", "processing", "paid"].includes(status)) {
+  if (!id || !["pending", "processing", "paid", "cancelled"].includes(status)) {
     return NextResponse.json({ error: "Parameter status tidak valid." }, { status: 400 });
   }
 

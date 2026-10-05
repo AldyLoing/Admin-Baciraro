@@ -42,6 +42,7 @@ export async function GET() {
         event_name: qr.event_name,
         event_points: qr.event_points,
         claimed_at: qr.claimed_at,
+        revoked_at: qr.revoked_at ?? null,
         created_at: qr.created_at,
         claim_url: `${CLAIM_BASE}/claim/event/${qr.code}`,
         used: !!qr.claimed_at,
@@ -170,18 +171,22 @@ export async function DELETE(req: NextRequest) {
 
   if (!existing) return NextResponse.json({ error: "QR tidak ditemukan." }, { status: 404 });
   if (existing.claimed_at) {
-    return NextResponse.json({ error: "QR yang sudah terpakai tidak bisa dihapus." }, { status: 409 });
+    return NextResponse.json({ error: "QR yang sudah terpakai tidak bisa dicabut." }, { status: 409 });
   }
+  const { data: revokedCheck } = await supabase.from("qr_codes").select("revoked_at").eq("id", id).single();
+  if (revokedCheck?.revoked_at) return NextResponse.json({ error: "QR sudah dicabut." }, { status: 400 });
 
-  const { error } = await supabase.from("qr_codes").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  const updates = { revoked_at: new Date().toISOString() };
+  const { error } = await supabase.from("qr_codes").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal mencabut: " + error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "qr_event", entityId: existing.id,
+    supabase, admin, action: "revoke", entityType: "qr_event", entityId: existing.id,
     entityName: existing.event_name || existing.code.slice(0, 8),
-    before: { code: existing.code, event_name: existing.event_name, event_points: existing.event_points },
+    before: { code: existing.code, event_name: existing.event_name, event_points: existing.event_points, revoked_at: null },
+    after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "QR dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "QR dicabut, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

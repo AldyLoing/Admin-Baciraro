@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { getAuthorizedClient, createGcalEvent, updateGcalEvent, deleteGcalEvent } from "@/lib/admin/gcal";
+import { getAuthorizedClient, createGcalEvent, updateGcalEvent } from "@/lib/admin/gcal";
 import { auditMutation, createNotification } from "@/lib/admin/audit";
 
 export async function POST(req: NextRequest) {
@@ -80,7 +80,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   const { id, status, title, description, project_id, assigned_to, due_date, priority, recurrence_rule } = body;
   if (!id) return NextResponse.json({ error: "ID wajib diisi." }, { status: 400 });
-  if (status !== undefined && !["pending", "active", "completed"].includes(status)) {
+  if (status !== undefined && !["pending", "active", "completed", "cancelled"].includes(status)) {
     return NextResponse.json({ error: "Parameter status tidak valid." }, { status: 400 });
   }
 
@@ -158,27 +158,19 @@ export async function DELETE(req: NextRequest) {
     .eq("id", id)
     .single();
 
-  const { error } = await supabase.from("tasks").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  if (!existingTask) return NextResponse.json({ error: "Tugas tidak ditemukan." }, { status: 404 });
+  if (existingTask.status === "cancelled") return NextResponse.json({ error: "Tugas sudah dibatalkan." }, { status: 400 });
+
+  const updates: Record<string, unknown> = { status: "cancelled" };
+  if (existingTask.gcal_event_id) updates.gcal_event_id = null;
+  const { error } = await supabase.from("tasks").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal membatalkan: " + error.message }, { status: 400 });
 
   const okDelete = await auditMutation({
-    supabase, admin, action: "delete", entityType: "task",
-    entityId: id, entityName: existingTask?.title ?? "", before: existingTask,
+    supabase, admin, action: "cancel", entityType: "task",
+    entityId: id, entityName: existingTask?.title ?? "", before: existingTask, after: updates,
   });
-  if (!okDelete) return NextResponse.json({ error: "Tugas dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!okDelete) return NextResponse.json({ error: "Tugas dibatalkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
-  let gcalDeleted = false;
-  if (existingTask?.gcal_event_id) {
-    try {
-      const auth = await getAuthorizedClient(admin.id);
-      if (auth) {
-        await deleteGcalEvent(auth, existingTask.gcal_event_id);
-        gcalDeleted = true;
-      }
-    } catch (e) {
-      console.warn("Google Calendar: gagal hapus event.", e);
-    }
-  }
-
-  return NextResponse.json({ ok: true, gcalDeleted });
+  return NextResponse.json({ ok: true, gcal_unlinked: Boolean(existingTask.gcal_event_id) });
 }

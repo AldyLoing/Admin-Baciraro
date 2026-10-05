@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     const { data: projectMembers } = await supabase
       .from("project_members")
       .select("member_id, name, contribution_percent, tugas")
-      .eq("project_id", project_id);
+      .eq("project_id", project_id)
+      .is("removed_at", null);
     selected = (projectMembers ?? []).map((pm: any) => ({
       member_id: pm.member_id,
       name: pm.name ?? "Anggota",
@@ -133,15 +134,25 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("payouts").select("*").eq("id", id).single();
-  const { error } = await supabase.from("payouts").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  if (!before) return NextResponse.json({ error: "Payout tidak ditemukan." }, { status: 404 });
+  if (before.status === "cancelled") return NextResponse.json({ error: "Payout sudah dibatalkan." }, { status: 400 });
+  if (before.status === "paid") {
+    return NextResponse.json(
+      { error: "Payout sudah dibayar (kas keluar tercatat) dan tidak bisa dibatalkan." },
+      { status: 400 }
+    );
+  }
+
+  const updates = { status: "cancelled" };
+  const { error } = await supabase.from("payouts").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal membatalkan: " + error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "payout", entityId: Number(id),
+    supabase, admin, action: "cancel", entityType: "payout", entityId: Number(id),
     entityName: before ? `${before.project_name || "Payout"} — ${before.date}` : String(id),
-    before,
+    before, after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "Payout dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Payout dibatalkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

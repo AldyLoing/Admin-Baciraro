@@ -12,6 +12,7 @@ type Note = {
   notes: string | null;
   project_id: string | null;
   created_at: string;
+  status: string;
 };
 
 type Attendee = { id: string; meeting_note_id: string; member_id: number };
@@ -149,7 +150,7 @@ export default function MeetingsClient({ notes, attendees, actionItems, members,
   }
 
   async function removeNote(id: string) {
-    if (!confirm("Hapus catatan rapat ini? Peserta dan tindak lanjut ikut terhapus.")) return;
+    if (!confirm("Arsipkan catatan rapat ini? Peserta dan tindak lanjut tetap tersimpan.")) return;
     const res = await fetch("/api/admin/meetings", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -195,6 +196,7 @@ export default function MeetingsClient({ notes, attendees, actionItems, members,
   }
 
   async function removeItem(itemId: string) {
+    if (!confirm("Hapus tindak lanjut ini? Tindak lanjut tidak dihapus, hanya ditandai dihapus.")) return;
     const res = await fetch("/api/admin/meeting-items", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -332,7 +334,12 @@ export default function MeetingsClient({ notes, attendees, actionItems, members,
                     </svg>
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-white">{n.title}</p>
+                    <p className="font-medium text-white">
+                      {n.title}
+                      {n.status === "archived" && (
+                        <span className="ml-2 px-2 py-0.5 rounded-full bg-white/10 text-white/50 text-[11px] font-medium align-middle">Diarsipkan</span>
+                      )}
+                    </p>
                     <p className="text-xs text-white/50">
                       {formatDate(n.date)}
                       {project ? ` · ${project.name}` : ""}
@@ -352,7 +359,7 @@ export default function MeetingsClient({ notes, attendees, actionItems, members,
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button onClick={() => removeNote(n.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                        <button onClick={() => removeNote(n.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Arsipkan catatan">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
@@ -427,7 +434,7 @@ export default function MeetingsClient({ notes, attendees, actionItems, members,
                                 </p>
                               </div>
                               {isAdmin && (
-                                <button onClick={() => removeItem(it.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                                <button onClick={() => removeItem(it.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus tindak lanjut">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                   </svg>

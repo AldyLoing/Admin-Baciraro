@@ -11,7 +11,7 @@ export default async function AdminTransactionsPage() {
   const [{ data: transactions }, { data: projects }, { data: accounts }] = await Promise.all([
     supabase
       .from("transactions")
-      .select("id, date, type, amount, source, description, reference, project_id, account_code, created_by, created_at")
+      .select("id, date, type, amount, source, description, reference, project_id, account_code, created_by, created_at, status")
       .order("date", { ascending: true })
       .order("created_at", { ascending: true }),
     supabase
@@ -36,6 +36,7 @@ export default async function AdminTransactionsPage() {
         reference: t.reference,
         project_id: t.project_id,
         account_code: t.account_code ?? null,
+        status: t.status ?? "active",
         created_at: t.created_at,
       }))}
       projects={(projects ?? []).map((p) => ({ id: p.id, name: p.name, status: p.status }))}

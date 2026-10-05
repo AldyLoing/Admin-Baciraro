@@ -19,7 +19,8 @@ export async function GET(
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, attachments: data?.attachments ?? [] });
+  const all = (data?.attachments as { removed_at?: string | null }[]) ?? [];
+  return NextResponse.json({ ok: true, attachments: all.filter((a) => !a.removed_at) });
 }
 
 export async function POST(
@@ -43,18 +44,20 @@ export async function POST(
     .single();
   if (fetchErr) return NextResponse.json({ ok: false, error: fetchErr.message }, { status: 500 });
 
-  const existing = (current?.attachments as Array<{ name: string; url: string; size: number; uploaded_at: string }>) ?? [];
-  const newAttachment = {
+  const all = (current?.attachments as Array<{ name: string; url: string; size: number; uploaded_at: string; removed_at?: string | null }>) ?? [];
+  const existing = all.filter((a) => !a.removed_at);
+  const newAttachment: { name: string; url: string; size: number; uploaded_at: string; removed_at: null } = {
     name,
     url: url ?? "",
     size: size ?? 0,
     uploaded_at: new Date().toISOString(),
+    removed_at: null,
   };
-  const updated = [...existing, newAttachment];
+  const stored = [...all, newAttachment];
 
   const { error } = await supabase
     .from("projects")
-    .update({ attachments: updated })
+    .update({ attachments: stored })
     .eq("id", id);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -65,7 +68,7 @@ export async function POST(
   });
   if (!ok) return NextResponse.json({ ok: false, error: "File tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
-  return NextResponse.json({ ok: true, attachments: updated });
+  return NextResponse.json({ ok: true, attachments: stored.filter((a) => !a.removed_at) });
 }
 
 export async function DELETE(
@@ -89,11 +92,17 @@ export async function DELETE(
     .single();
   if (fetchErr) return NextResponse.json({ ok: false, error: fetchErr.message }, { status: 500 });
 
-  const existing = (current?.attachments as Array<{ name: string; url: string; size: number; uploaded_at: string }>) ?? [];
-  if (index < 0 || index >= existing.length) return NextResponse.json({ ok: false, error: "Index invalid." }, { status: 400 });
+  const all = (current?.attachments as Array<{ name: string; url: string; size: number; uploaded_at: string; removed_at?: string | null }>) ?? [];
+  const active = all.filter((a) => !a.removed_at);
+  if (index < 0 || index >= active.length) return NextResponse.json({ ok: false, error: "Index invalid." }, { status: 400 });
 
-  const removed = existing[index];
-  const updated = existing.filter((_, i) => i !== index);
+  const removed = active[index];
+  const removedAt = new Date().toISOString();
+  const updated: typeof all = all.map((a) =>
+    !a.removed_at && a.name === removed.name && a.url === removed.url && a.uploaded_at === removed.uploaded_at
+      ? { ...a, removed_at: removedAt }
+      : a
+  );
   const { error } = await supabase
     .from("projects")
     .update({ attachments: updated })
@@ -103,9 +112,11 @@ export async function DELETE(
 
   const ok = await auditMutation({
     supabase, admin, action: "delete", entityType: "attachment", entityId: Number(id),
-    entityName: removed?.name || `index ${index}`, before: removed ?? null, extra: { project_id: Number(id) },
+    entityName: removed?.name || `index ${index}`, before: removed ?? null,
+    after: { removed_at: removedAt },
+    extra: { project_id: Number(id) },
   });
   if (!ok) return NextResponse.json({ ok: false, error: "File dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
-  return NextResponse.json({ ok: true, attachments: updated });
+  return NextResponse.json({ ok: true, attachments: updated.filter((a) => !a.removed_at) });
 }

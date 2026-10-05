@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { getAuthorizedClient, createGcalEvent, updateGcalEvent, deleteGcalEvent, listGcalEvents } from "@/lib/admin/gcal";
+import { getAuthorizedClient, createGcalEvent, updateGcalEvent, listGcalEvents } from "@/lib/admin/gcal";
 import { fetchIcsEvents } from "@/lib/admin/ics";
 import { auditMutation } from "@/lib/admin/audit";
 
@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: task } = await supabase.from("tasks").select("gcal_event_id, title").eq("id", taskId).single();
   if (task?.gcal_event_id) {
-    await deleteGcalEvent(auth, task.gcal_event_id);
+    // Putus tautan saja — event di Google Calendar TIDAK dihapus (data eksternal).
     await supabase.from("tasks").update({ gcal_event_id: null }).eq("id", taskId);
 
     const ok = await auditMutation({

@@ -53,6 +53,7 @@ type SaleRow = {
   total: number | string;
   payment_note: string | null;
   transaction_id: number | null;
+  status?: string;
   created_at: string;
   transactions: { reference: string } | null;
   sale_items: SaleItemRow[] | null;
@@ -80,7 +81,7 @@ export default async function AdminInventoriPage() {
     supabase
       .from("sales")
       .select(
-        "id, date, reference, recipient, total, payment_note, transaction_id, created_at, transactions:transaction_id ( reference ), sale_items ( id, product_id, qty, harga_jual, subtotal, products:product_id ( name ) )"
+        "id, date, reference, recipient, total, payment_note, transaction_id, status, created_at, transactions:transaction_id ( reference ), sale_items ( id, product_id, qty, harga_jual, subtotal, products:product_id ( name ) )"
       )
       .order("date", { ascending: false })
       .order("id", { ascending: false })
@@ -127,6 +128,7 @@ export default async function AdminInventoriPage() {
     reference: s.reference ?? "",
     recipient: s.recipient ?? "",
     total: Number(s.total) || 0,
+    status: s.status ?? "active",
     payment_note: s.payment_note ?? "",
     transaction_ref: s.transactions?.reference ?? null,
     created_at: s.created_at,

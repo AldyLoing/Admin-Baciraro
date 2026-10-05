@@ -31,6 +31,7 @@ export default async function ProjectDetailPage({
       .from("project_members")
       .select("id, member_id, name, contribution_percent, amount, tugas, team_members(id, name, role, photo_url)")
       .eq("project_id", id)
+      .is("removed_at", null)
       .order("contribution_percent", { ascending: false }),
     supabase
       .from("team_members")
@@ -38,7 +39,7 @@ export default async function ProjectDetailPage({
       .order("name"),
     supabase
       .from("transactions")
-      .select("id, date, type, amount, source, description, reference, account_code")
+      .select("id, date, type, amount, source, description, reference, account_code, status")
       .eq("project_id", id)
       .order("date", { ascending: true }),
     supabase
@@ -63,11 +64,12 @@ export default async function ProjectDetailPage({
   const dist = calculateDistribution(Number(project.total_value) || 0, contributions);
 
   const allTx = (transactions ?? []) as any[];
-  const totalIncome = allTx.filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
-  const totalExpense = allTx.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const activeTx = allTx.filter((t: any) => t.status !== "void");
+  const totalIncome = activeTx.filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const totalExpense = activeTx.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
   const allPayouts = (payouts ?? []) as any[];
   const totalPaidPayout = allPayouts.filter((p: any) => p.status === "paid").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
-  const pendingPayout = allPayouts.filter((p: any) => p.status !== "paid").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
+  const pendingPayout = allPayouts.filter((p: any) => p.status !== "paid" && p.status !== "cancelled").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
 
   const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
   const statusColor: Record<string, string> = {
@@ -97,6 +99,7 @@ export default async function ProjectDetailPage({
         transactions={allTx.map((t) => ({
           id: t.id, date: t.date, type: t.type, amount: Number(t.amount),
           source: t.source, description: t.description, reference: t.reference,
+          status: t.status ?? "active",
         }))}
         payouts={allPayouts.map((p) => ({
           id: p.id, date: p.date, total_amount: Number(p.total_amount),

@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
   ] = await Promise.all([
     supabase.from("projects").select("id, name, client_name, status").ilike("name", LIKE).limit(5),
     supabase.from("team_members").select("id, name, role").ilike("name", LIKE).limit(5),
-    supabase.from("transactions").select("id, description, source, type, amount").ilike("description", LIKE).limit(5),
-    supabase.from("transactions").select("id, description, source, type, amount").ilike("source", LIKE).limit(5),
+    supabase.from("transactions").select("id, description, source, type, amount").eq("status", "active").ilike("description", LIKE).limit(5),
+    supabase.from("transactions").select("id, description, source, type, amount").eq("status", "active").ilike("source", LIKE).limit(5),
     supabase.from("tasks").select("id, title, status").ilike("title", LIKE).limit(5),
     supabase.from("meeting_notes").select("id, title, date").ilike("title", LIKE).limit(5),
     supabase.from("payouts").select("id, project_name, status").ilike("project_name", LIKE).limit(5),

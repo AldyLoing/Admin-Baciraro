@@ -6,13 +6,13 @@ import {
   generateReference,
   generateSaleReference,
   journalForSale,
-  deleteJournalEntry,
   round2,
 } from "@/lib/admin/inventori";
 import { auditMutation } from "@/lib/admin/audit";
+import { voidJournalEntry, voidTransaction } from "@/lib/admin/void";
 
 const SALE_SELECT = `
-  id, date, reference, recipient, total, payment_note, transaction_id, created_by, created_at,
+  id, date, reference, recipient, total, payment_note, transaction_id, status, created_by, created_at,
   transactions:transaction_id ( reference ),
   sale_items ( id, product_id, qty, harga_jual, harga_modal, subtotal, products:product_id ( name, sku, unit ) )
 `;
@@ -317,13 +317,14 @@ export async function DELETE(req: NextRequest) {
 
   const { data: sale, error } = await supabase
     .from("sales")
-    .select("id, reference, transaction_id, journal_entry_id")
+    .select("id, reference, transaction_id, journal_entry_id, status")
     .eq("id", id)
     .single();
 
   if (error || !sale) return NextResponse.json({ error: "Penjualan tidak ditemukan." }, { status: 404 });
+  if (sale.status === "void") return NextResponse.json({ error: "Penjualan sudah dibatalkan." }, { status: 400 });
 
-  // 1. Kembalikan stok
+  // 1. Kembalikan stok + catat mutasi koreksi (mutasi asli TIDAK dihapus)
   const { data: items } = await supabase
     .from("sale_items")
     .select("product_id, qty, products:product_id ( stok, unit, name )")
@@ -338,26 +339,40 @@ export async function DELETE(req: NextRequest) {
     if (stokError) {
       return NextResponse.json({ error: "Gagal mengembalikan stok: " + stokError.message }, { status: 400 });
     }
+    const { error: mvError } = await supabase.from("stock_movements").insert({
+      product_id: it.product_id,
+      type: "in",
+      reason: "koreksi",
+      qty: it.qty,
+      note: `Koreksi pembatalan penjualan ${sale.reference}`,
+      reference: `VOID-SALE-${id}`,
+      created_by: admin.id,
+    });
+    if (mvError) return NextResponse.json({ error: "Gagal mencatat koreksi stok: " + mvError.message }, { status: 400 });
   }
 
-  // 2. Hapus mutasi, jurnal, kas, lalu penjualan
-  await supabase.from("stock_movements").delete().eq("sale_id", id);
-  await deleteJournalEntry(supabase, sale.journal_entry_id);
+  // 2. Batalkan jurnal penjualan & jurnal kas transaksi (tanpa menghapus)
+  if (sale.journal_entry_id) {
+    const j = await voidJournalEntry(supabase, sale.journal_entry_id, admin.id);
+    if (!j.ok) return NextResponse.json({ error: "Gagal membatalkan jurnal penjualan: " + j.error }, { status: 400 });
+  }
   if (sale.transaction_id) {
-    await supabase.from("journal_entries").delete().eq("transaction_id", sale.transaction_id);
-    await supabase.from("transactions").delete().eq("id", sale.transaction_id);
+    const t = await voidTransaction(supabase, sale.transaction_id, admin.id);
+    if (!t.ok) return NextResponse.json({ error: "Gagal membatalkan kas penjualan: " + t.error }, { status: 400 });
   }
 
-  const { error: deleteError } = await supabase.from("sales").delete().eq("id", id);
-  if (deleteError) return NextResponse.json({ error: "Gagal menghapus penjualan: " + deleteError.message }, { status: 400 });
+  // 3. Tandai penjualan void
+  const { error: voidError } = await supabase.from("sales").update({ status: "void" }).eq("id", id);
+  if (voidError) return NextResponse.json({ error: "Gagal membatalkan penjualan: " + voidError.message }, { status: 400 });
 
   const okDelete = await auditMutation({
-    supabase, admin, action: "delete", entityType: "sale",
+    supabase, admin, action: "void", entityType: "sale",
     entityId: id, entityName: sale.reference,
     before: sale as unknown as Record<string, unknown>,
-    extra: { restored_stock_items: (items ?? []).length },
+    after: { ...sale, status: "void" },
+    extra: { corrected_stock_items: (items ?? []).length },
   });
-  if (!okDelete) return NextResponse.json({ error: "Penjualan dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!okDelete) return NextResponse.json({ error: "Penjualan dibatalkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

@@ -20,13 +20,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
 
   const { data, error } = await supabase
     .from("qr_codes")
-    .select("id, code, event_name, event_points, claimed_at")
+    .select("id, code, event_name, event_points, claimed_at, revoked_at")
     .eq("code", code)
     .eq("is_event", true)
     .single();
 
   if (error || !data) {
     return NextResponse.json({ error: "QR event tidak ditemukan" }, { status: 404 });
+  }
+  if (data.revoked_at) {
+    return NextResponse.json({ error: "QR ini sudah dicabut dan tidak berlaku." }, { status: 410 });
   }
 
   return NextResponse.json({
@@ -51,13 +54,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { data: qr, error } = await supabase
     .from("qr_codes")
-    .select("id, code, event_name, event_points, claimed_at, customer_id")
+    .select("id, code, event_name, event_points, claimed_at, customer_id, revoked_at")
     .eq("code", code)
     .eq("is_event", true)
     .single();
 
   if (error || !qr) {
     return NextResponse.json({ error: "QR event tidak ditemukan" }, { status: 404 });
+  }
+
+  if (qr.revoked_at) {
+    return NextResponse.json({ error: "QR ini sudah dicabut dan tidak berlaku." }, { status: 410 });
   }
 
   if (qr.claimed_at) {

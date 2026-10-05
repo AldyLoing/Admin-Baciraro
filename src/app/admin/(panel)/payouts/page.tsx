@@ -35,7 +35,8 @@ export default async function AdminPayoutsPage({
       .order("name"),
     supabase
       .from("project_members")
-      .select("id, project_id, member_id, name, contribution_percent, amount, tugas"),
+      .select("id, project_id, member_id, name, contribution_percent, amount, tugas")
+      .is("removed_at", null),
     supabase
       .from("team_members")
       .select("id, name, role, status")

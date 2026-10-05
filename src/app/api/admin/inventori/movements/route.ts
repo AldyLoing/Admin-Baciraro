@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { journalForMovement, deleteJournalEntry, round2 } from "@/lib/admin/inventori";
+import { journalForMovement, round2 } from "@/lib/admin/inventori";
 import { auditMutation } from "@/lib/admin/audit";
+import { voidJournalEntry } from "@/lib/admin/void";
 
 const MOVEMENT_SELECT = `
   id, product_id, type, reason, qty, recipient, note, reference, harga_modal,
@@ -162,43 +163,67 @@ export async function DELETE(req: NextRequest) {
 
   const { data: movement, error } = await supabase
     .from("stock_movements")
-    .select("id, product_id, type, qty, sale_id, journal_entry_id, products:product_id ( name, unit, stok )")
+    .select("id, product_id, type, reason, qty, harga_modal, sale_id, journal_entry_id, reference, products:product_id ( name, unit, stok )")
     .eq("id", id)
     .single();
 
   if (error || !movement) return NextResponse.json({ error: "Mutasi tidak ditemukan." }, { status: 404 });
   if (movement.sale_id) {
     return NextResponse.json(
-      { error: "Mutasi ini bagian dari penjualan. Hapus lewat daftar penjualan agar stok & kas ikut terbalik." },
+      { error: "Mutasi ini bagian dari penjualan. Batalkan lewat daftar penjualan agar stok & kas ikut terbalik." },
       { status: 400 }
     );
   }
+  const { data: already } = await supabase
+    .from("stock_movements")
+    .select("id")
+    .eq("reference", `VOID-${id}`)
+    .maybeSingle();
+  if (already) return NextResponse.json({ error: "Mutasi ini sudah pernah dikoreksi." }, { status: 400 });
 
   const product = movement.products as unknown as { name: string; unit: string; stok: number };
   const newStok = movement.type === "in" ? product.stok - movement.qty : product.stok + movement.qty;
   if (newStok < 0) {
-    return NextResponse.json({ error: "Pembalikan ini membuat stok negatif. Stok mungkin sudah berubah." }, { status: 400 });
+    return NextResponse.json({ error: "Koreksi ini membuat stok negatif. Stok mungkin sudah berubah." }, { status: 400 });
   }
 
   const { error: stokError } = await supabase
     .from("inventory_items")
     .update({ stok: newStok, updated_at: new Date().toISOString() })
     .eq("id", movement.product_id);
+  if (stokError) return NextResponse.json({ error: "Gagal mengembalikan stok: " + stokError.message }, { status: 400 });
 
-  if (stokError) return NextResponse.json({ error: "Gagal membalik stok: " + stokError.message }, { status: 400 });
+  if (movement.journal_entry_id) {
+    const j = await voidJournalEntry(supabase, movement.journal_entry_id, admin.id);
+    if (!j.ok) return NextResponse.json({ error: "Gagal membatalkan jurnal mutasi: " + j.error }, { status: 400 });
+  }
 
-  await deleteJournalEntry(supabase, movement.journal_entry_id);
-  const { error: deleteError } = await supabase.from("stock_movements").delete().eq("id", id);
-  if (deleteError) return NextResponse.json({ error: "Gagal menghapus mutasi: " + deleteError.message }, { status: 400 });
+  const koreksiType = movement.type === "in" ? "out" : "in";
+  const { data: koreksi, error: koreksiError } = await supabase
+    .from("stock_movements")
+    .insert({
+      product_id: movement.product_id,
+      type: koreksiType,
+      reason: "koreksi",
+      qty: movement.qty,
+      note: `Koreksi atas mutasi #${id} (${movement.type === "in" ? "masuk" : "keluar"})`,
+      reference: `VOID-${id}`,
+      harga_modal: Number(movement.harga_modal) || 0,
+      created_by: admin.id,
+    })
+    .select("id")
+    .single();
+  if (koreksiError) return NextResponse.json({ error: "Gagal mencatat mutasi koreksi: " + koreksiError.message }, { status: 400 });
 
   const okDelete = await auditMutation({
-    supabase, admin, action: "delete", entityType: "stock_movement",
+    supabase, admin, action: "void", entityType: "stock_movement",
     entityId: id,
     entityName: `${movement.type === "in" ? "Masuk" : "Keluar"} ${movement.qty} ${product.unit} ${product.name}`,
     before: movement as unknown as Record<string, unknown>,
+    after: { koreksi_id: koreksi.id, type: koreksiType, reason: "koreksi", qty: movement.qty },
     extra: { stok_baru: newStok },
   });
-  if (!okDelete) return NextResponse.json({ error: "Mutasi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!okDelete) return NextResponse.json({ error: "Mutasi dikoreksi, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true, stok_baru: newStok });
 }

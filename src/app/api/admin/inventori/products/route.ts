@@ -177,27 +177,19 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const [{ count: movementCount }, { count: saleItemCount }] = await Promise.all([
-    supabase.from("stock_movements").select("id", { count: "exact", head: true }).eq("product_id", id),
-    supabase.from("sale_items").select("id", { count: "exact", head: true }).eq("product_id", id),
-  ]);
-
-  if ((movementCount ?? 0) > 0 || (saleItemCount ?? 0) > 0) {
-    return NextResponse.json(
-      { error: "Barang memiliki riwayat mutasi/penjualan dan tidak bisa dihapus. Nonaktifkan saja (Ubah → Status)." },
-      { status: 400 }
-    );
-  }
-
   const { data: before } = await supabase.from("inventory_items").select("*").eq("id", id).single();
-  const { error } = await supabase.from("inventory_items").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  if (!before) return NextResponse.json({ error: "Barang tidak ditemukan." }, { status: 404 });
+  if (before.is_active === false) return NextResponse.json({ error: "Barang sudah nonaktif." }, { status: 400 });
+
+  const updates = { is_active: false };
+  const { error } = await supabase.from("inventory_items").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal menonaktifkan: " + error.message }, { status: 400 });
 
   const okDelete = await auditMutation({
-    supabase, admin, action: "delete", entityType: "product",
-    entityId: id, entityName: before?.name ?? "", before,
+    supabase, admin, action: "deactivate", entityType: "product",
+    entityId: id, entityName: before?.name ?? "", before, after: updates,
   });
-  if (!okDelete) return NextResponse.json({ error: "Barang dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!okDelete) return NextResponse.json({ error: "Barang dinonaktifkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

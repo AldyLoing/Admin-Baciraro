@@ -54,6 +54,7 @@ export type Sale = {
   recipient: string;
   total: number;
   payment_note: string;
+  status?: string;
   transaction_ref: string | null;
   created_at: string;
   items: SaleItem[];
@@ -350,7 +351,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }
 
   async function removeProduct(id: number) {
-    if (!confirm("Hapus barang ini?")) return;
+    if (!confirm("Nonaktifkan barang ini? Barang tidak dihapus dan tetap bisa dilihat di riwayat.")) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/products", "DELETE", { id });
@@ -418,7 +419,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }
 
   async function removeMovement(id: number) {
-    if (!confirm("Hapus mutasi ini? Stok akan dikembalikan seperti semula.")) return;
+    if (!confirm("Koreksi mutasi ini? Stok akan dikembalikan seperti semula dan mutasi asli ditandai void.")) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/movements", "DELETE", { id });
@@ -539,7 +540,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }
 
   async function removeSale(id: number) {
-    if (!confirm("Hapus penjualan ini? Stok, kas, dan jurnal akan dikembalikan.")) return;
+    if (!confirm("Batalkan penjualan ini? Stok, kas, dan jurnal akan dikembalikan (data penjualan tetap tersimpan).")) return;
     setError(null);
     setSaving(true);
     try {
@@ -925,7 +926,8 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                           <button
                             onClick={() => removeProduct(p.id)}
                             className="p-1.5 text-white/30 hover:text-red-400 transition"
-                            aria-label="Hapus"
+                            aria-label="Nonaktifkan barang"
+                            title="Nonaktifkan barang"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
@@ -1136,8 +1138,8 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                         <button
                           onClick={() => removeMovement(m.id)}
                           className="p-1.5 text-white/30 hover:text-red-400 transition"
-                          aria-label="Hapus"
-                          title="Hapus mutasi (stok dikembalikan)"
+                          aria-label="Koreksi mutasi"
+                          title="Koreksi mutasi (stok dikembalikan)"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path
@@ -1315,6 +1317,9 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-sm text-[#E9A64E]">{s.reference}</span>
+                      {s.status === "void" && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400">DIBATALKAN</span>
+                      )}
                       <span className="text-white/40 text-xs">{s.date}</span>
                       {s.transaction_ref && (
                         <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[11px] font-mono">
@@ -1373,8 +1378,8 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <div className="text-xs text-white/50 uppercase tracking-wide">Total Penjualan</div>
-              <div className="text-2xl font-bold text-white mt-2">{formatRupiah(sales.reduce((s, x) => s + x.total, 0))}</div>
-              <div className="text-xs text-white/40 mt-1">{sales.length} transaksi penjualan tercatat</div>
+              <div className="text-2xl font-bold text-white mt-2">{formatRupiah(sales.filter((x) => x.status !== "void").reduce((s, x) => s + x.total, 0))}</div>
+              <div className="text-xs text-white/40 mt-1">{sales.filter((x) => x.status !== "void").length} transaksi penjualan tercatat (dibatalkan tidak dihitung)</div>
             </div>
           </div>
 

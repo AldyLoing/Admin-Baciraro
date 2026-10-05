@@ -82,14 +82,18 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("meeting_notes").select("*").eq("id", id).single();
-  const { error } = await supabase.from("meeting_notes").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  if (!before) return NextResponse.json({ error: "Catatan rapat tidak ditemukan." }, { status: 404 });
+  if (before.status === "archived") return NextResponse.json({ error: "Catatan rapat sudah diarsipkan." }, { status: 400 });
+
+  const updates = { status: "archived" };
+  const { error } = await supabase.from("meeting_notes").update(updates).eq("id", id);
+  if (error) return NextResponse.json({ error: "Gagal mengarsipkan: " + error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "meeting", entityId: Number(id),
-    entityName: before?.title || String(id), before,
+    supabase, admin, action: "archive", entityType: "meeting", entityId: Number(id),
+    entityName: before?.title || String(id), before, after: updates,
   });
-  if (!ok) return NextResponse.json({ error: "Rapat dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Rapat diarsipkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

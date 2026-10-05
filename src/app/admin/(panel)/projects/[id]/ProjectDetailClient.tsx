@@ -28,7 +28,7 @@ type Member = {
 
 type AllMember = { id: number; name: string; role: string };
 
-type TxRow = { id: string; date: string; type: string; amount: number; source: string; description: string; reference: string };
+type TxRow = { id: string; date: string; type: string; amount: number; source: string; description: string; reference: string; status?: string };
 type PayoutRow = { id: string; date: string; total_amount: number; orders_fee: number; net_amount: number; status: string; kas_optional_amount: number };
 type ActivityRow = { id: number; user_name: string; action: string; entity_name: string; details: unknown; created_at: string };
 type Attachment = { name: string; url: string; size: number; uploaded_at: string };
@@ -98,7 +98,10 @@ export default function ProjectDetailClient({
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>(() => {
-    try { return JSON.parse((initialProject as Project & { attachments?: string | null }).attachments || "[]"); } catch { return []; }
+    try {
+      const parsed = JSON.parse((initialProject as Project & { attachments?: string | null }).attachments || "[]");
+      return Array.isArray(parsed) ? parsed.filter((a: { removed_at?: string | null }) => !a.removed_at) : [];
+    } catch { return []; }
   });
   const [uploading, setUploading] = useState(false);
 
@@ -148,7 +151,7 @@ export default function ProjectDetailClient({
   }
 
   async function removeMember(pmId: number, memberName: string) {
-    if (!confirm(`Hapus ${memberName} dari project ini?`)) return;
+    if (!confirm(`Keluarkan ${memberName} dari project ini? Anggota bisa ditambahkan kembali nanti.`)) return;
     const res = await fetch("/api/admin/project-members", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: pmId }) });
     const data = await res.json();
     if (!res.ok || !data.ok) { showError("Gagal menghapus: " + (data.error ?? "unknown")); return; }
@@ -170,7 +173,7 @@ export default function ProjectDetailClient({
   }
 
   async function deleteProject() {
-    if (!confirm("Hapus project ini beserta seluruh datanya? Tindakan ini tidak bisa dibatalkan.")) return;
+    if (!confirm("Arsipkan project ini? Semua data (transaksi, anggota, lampiran) tetap tersimpan dan tidak dihapus.")) return;
     const res = await fetch("/api/admin/projects", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: project.id }) });
     const data = await res.json();
     if (!res.ok || !data.ok) { showError("Gagal menghapus: " + (data.error ?? "unknown")); return; }
@@ -200,7 +203,7 @@ export default function ProjectDetailClient({
   }
 
   async function removeAttachment(index: number) {
-    if (!confirm("Hapus file ini?")) return;
+    if (!confirm("Hapus file ini dari daftar lampiran? File tetap tersimpan di penyimpanan dan audit tercatat.")) return;
     const res = await fetch(`/api/admin/projects/${project.id}/attachments`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -275,7 +278,7 @@ export default function ProjectDetailClient({
           </div>
           <div className="flex gap-3">
             <button onClick={saveProject} disabled={loading} className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-50">{loading ? "Menyimpan..." : "Simpan Perubahan"}</button>
-            <button onClick={deleteProject} className="px-5 py-2.5 rounded-lg border border-red-500/30 text-red-400 font-medium hover:bg-red-500/10 transition ml-auto">Hapus Project</button>
+            <button onClick={deleteProject} className="px-5 py-2.5 rounded-lg border border-red-500/30 text-red-400 font-medium hover:bg-red-500/10 transition ml-auto">Arsipkan Project</button>
           </div>
         </div>
       )}
@@ -358,7 +361,12 @@ export default function ProjectDetailClient({
                       <td className="px-3 py-2 text-white/60 whitespace-nowrap">{formatDate(t.date)}</td>
                       <td className="px-3 py-2 font-mono text-xs text-white/50">{t.reference || "-"}</td>
                       <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${t.type === "income" ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"}`}>{t.type === "income" ? "Masuk" : "Keluar"}</span></td>
-                      <td className="px-3 py-2 text-white">{t.source}</td>
+                      <td className="px-3 py-2 text-white">
+                        {t.source}
+                        {t.status === "void" && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400">DIBATALKAN</span>
+                        )}
+                      </td>
                       <td className={`px-3 py-2 text-right font-semibold ${t.type === "income" ? "text-blue-400" : "text-red-400"}`}>{t.type === "income" ? "+" : "-"}{formatRupiah(t.amount)}</td>
                     </tr>
                   ))}</tbody>
@@ -455,7 +463,7 @@ export default function ProjectDetailClient({
                     <span className="w-32 text-right text-sm font-semibold text-white hidden sm:block">{formatRupiah(amount)}</span>
                     {isAdmin && (<>
                       <button onClick={() => setEditingTugas(editingTugas?.pm_id === m.pm_id ? null : { pm_id: m.pm_id, value: m.tugas ?? "" })} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Edit tugas"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                      <button onClick={() => removeMember(m.pm_id, m.name)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                      <button onClick={() => removeMember(m.pm_id, m.name)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Keluarkan dari project"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                     </>)}
                   </div>
                 );
@@ -495,7 +503,7 @@ export default function ProjectDetailClient({
                     <p className="text-xs text-white/40">{a.size ? `${(a.size / 1024).toFixed(1)} KB` : ""} {a.uploaded_at ? `· ${formatDate(a.uploaded_at)}` : ""}</p>
                   </div>
                   {isAdmin && (
-                    <button onClick={() => removeAttachment(i)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    <button onClick={() => removeAttachment(i)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus lampiran"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                   )}
                 </div>
               ))}

@@ -34,25 +34,30 @@ export default async function AdminDashboardPage() {
       .order("name"),
     supabase
       .from("project_members")
-      .select("project_id, member_id, contribution_percent, projects!inner(status, total_value)"),
+      .select("project_id, member_id, contribution_percent, projects!inner(status, total_value)")
+      .is("removed_at", null),
     supabase
       .from("transactions")
-      .select("date, type, amount, project_id, description, source"),
+      .select("date, type, amount, project_id, description, source")
+      .eq("status", "active"),
     supabase
       .from("payout_members")
       .select("member_id, name, amount"),
     supabase
       .from("journal_entries")
-      .select("total_debit, total_credit"),
+      .select("total_debit, total_credit")
+      .eq("status", "active"),
     supabase
       .from("accounts")
       .select("code, name, type"),
     supabase
       .from("journal_entry_lines")
-      .select("account_code, debit, credit"),
+      .select("account_code, debit, credit, journal_entries!inner(status)")
+      .eq("journal_entries.status", "active"),
     supabase
       .from("tasks")
-      .select("id, title, status, assigned_to, priority, due_date"),
+      .select("id, title, status, assigned_to, priority, due_date")
+      .neq("status", "cancelled"),
     supabase
       .from("payouts")
       .select("id, project_name, net_amount, status, kas_optional_amount, finalized_at"),

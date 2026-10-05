@@ -3,6 +3,7 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { generateReference } from "@/lib/admin/transactions";
 import { auditMutation } from "@/lib/admin/audit";
+import { voidTransaction } from "@/lib/admin/void";
 
 async function createJournalEntry(
   supabase: any,
@@ -168,16 +169,18 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("transactions").select("*").eq("id", id).single();
+  if (!before) return NextResponse.json({ error: "Transaksi tidak ditemukan." }, { status: 404 });
+  if (before.status === "void") return NextResponse.json({ error: "Transaksi sudah dibatalkan." }, { status: 400 });
 
-  await supabase.from("journal_entries").delete().eq("transaction_id", id);
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
+  const res = await voidTransaction(supabase, Number(id), admin.id);
+  if (!res.ok) return NextResponse.json({ error: "Gagal membatalkan: " + res.error }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "transaction", entityId: Number(id),
+    supabase, admin, action: "void", entityType: "transaction", entityId: Number(id),
     entityName: before?.reference || String(id), before,
+    after: { ...before, status: "void" },
   });
-  if (!ok) return NextResponse.json({ error: "Transaksi dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Transaksi dibatalkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

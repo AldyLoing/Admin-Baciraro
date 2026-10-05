@@ -24,6 +24,7 @@ type JournalEntry = {
   total_debit: number;
   total_credit: number;
   transaction_id: number | null;
+  status?: string;
   created_at: string;
   lines: JournalLine[];
 };
@@ -162,7 +163,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
   }
 
   async function remove(id: number) {
-    if (!confirm("Hapus jurnal ini?")) return;
+    if (!confirm("Batalkan jurnal ini? Sistem membuat entry pembalikan otomatis agar saldo bersih (data tetap tersimpan).")) return;
     const res = await fetch("/api/admin/journal", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -428,13 +429,21 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                   <Fragment key={e.id}>
                     <tr className="border-b border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => setExpanded((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}>
                       <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDate(e.date)}</td>
-                      <td className="px-4 py-3 font-medium text-white">{e.description}</td>
+                      <td className="px-4 py-3 font-medium text-white">
+                        {e.description}
+                        {e.status === "void" && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 align-middle">DIBATALKAN</span>
+                        )}
+                        {e.reference?.startsWith("VOID-") && e.status !== "void" && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/50 align-middle">Pembatalan</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{e.reference || "-"}</td>
                       <td className="px-4 py-3 text-right font-semibold text-blue-400 whitespace-nowrap">{formatRupiah(e.total_debit)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-purple-400 whitespace-nowrap">{formatRupiah(e.total_credit)}</td>
                       {isAdmin && (
                         <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                          <button onClick={() => remove(e.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                          <button onClick={() => remove(e.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Batalkan jurnal">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>

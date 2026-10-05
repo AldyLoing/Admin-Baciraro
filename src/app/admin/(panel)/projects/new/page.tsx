@@ -17,6 +17,7 @@ export default async function NewProjectPage() {
     supabase
       .from("project_templates")
       .select("id, name, description, default_members, default_tasks")
+      .eq("is_active", true)
       .order("name"),
   ]);
 

@@ -72,12 +72,16 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createAdminClient();
   const { data: before } = await supabase.from("action_items").select("*").eq("id", id).single();
-  const { error } = await supabase.from("action_items").delete().eq("id", id);
+  if (!before) return NextResponse.json({ error: "Tindak lanjut tidak ditemukan." }, { status: 404 });
+  if (before.status === "removed") return NextResponse.json({ error: "Tindak lanjut sudah dihapus." }, { status: 400 });
+
+  const updates = { status: "removed" };
+  const { error } = await supabase.from("action_items").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: "Gagal menghapus: " + error.message }, { status: 400 });
 
   const ok = await auditMutation({
     supabase, admin, action: "delete", entityType: "action_item", entityId: Number(id),
-    entityName: before?.task || String(id), before,
+    entityName: before?.task || String(id), before, after: updates,
   });
   if (!ok) return NextResponse.json({ error: "Tindak lanjut dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
 

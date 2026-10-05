@@ -17,6 +17,7 @@ type Transaction = {
   reference: string;
   project_id: string | null;
   account_code: number | null;
+  status: string;
   created_at: string;
 };
 
@@ -81,6 +82,7 @@ export default function TransactionsClient({ transactions, projects, accounts, i
     );
     let balance = 0;
     const out = sorted.map((t) => {
+      if (t.status === "void") return { ...t, balance };
       balance += t.type === "income" ? t.amount : -t.amount;
       return { ...t, balance };
     });
@@ -109,8 +111,9 @@ export default function TransactionsClient({ transactions, projects, accounts, i
     return filtered.slice(start, start + PER_PAGE);
   }, [filtered, page]);
 
-  const totalIncome = withBalance.reduce((s, t) => s + (t.type === "income" ? t.amount : 0), 0);
-  const totalExpense = withBalance.reduce((s, t) => s + (t.type === "expense" ? t.amount : 0), 0);
+  const counted = withBalance.filter((t) => t.status !== "void");
+  const totalIncome = counted.reduce((s, t) => s + (t.type === "income" ? t.amount : 0), 0);
+  const totalExpense = counted.reduce((s, t) => s + (t.type === "expense" ? t.amount : 0), 0);
   const balance = totalIncome - totalExpense;
 
   function openCreate() {
@@ -205,7 +208,7 @@ export default function TransactionsClient({ transactions, projects, accounts, i
   }
 
   async function remove(id: string) {
-    if (!confirm("Hapus transaksi ini?")) return;
+    if (!confirm("Batalkan transaksi ini? Entry pembalikan otomatis dibuat agar saldo bersih (data tetap tersimpan).")) return;
     const res = await fetch("/api/admin/transactions", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -442,7 +445,12 @@ export default function TransactionsClient({ transactions, projects, accounts, i
                         </span>
                       </td>
                       <td className="px-4 py-3 min-w-[220px]">
-                        <p className="font-medium text-white">{t.source}</p>
+                        <p className="font-medium text-white">
+                          {t.source}
+                          {t.status === "void" && (
+                            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 align-middle">DIBATALKAN</span>
+                          )}
+                        </p>
                         <p className="text-xs text-white/40 truncate">
                           {t.description || "-"}
                           {project ? ` · ${project.name}` : ""}
@@ -464,7 +472,7 @@ export default function TransactionsClient({ transactions, projects, accounts, i
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => remove(t.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Hapus">
+                          <button onClick={() => remove(t.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Batalkan transaksi">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>

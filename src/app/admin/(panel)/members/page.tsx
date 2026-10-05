@@ -18,6 +18,7 @@ export default async function AdminMembersPage() {
     .select(
       "member_id, contribution_percent, project_id, projects!inner(name, status, total_value, created_at)"
     )
+    .is("removed_at", null)
     .order("created_at", { ascending: false });
 
   const { data: payoutMembers } = await supabase
@@ -30,7 +31,8 @@ export default async function AdminMembersPage() {
 
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("id, date, type, amount, source, created_by, reference");
+    .select("id, date, type, amount, source, created_by, reference")
+    .eq("status", "active");
 
   const allProjects = new Map<string, { name: string; status: string; total_value: number }>();
   (projectMembers ?? []).forEach((pm: any) => {

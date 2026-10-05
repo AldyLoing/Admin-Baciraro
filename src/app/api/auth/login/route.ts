@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     let { data: user } = await supabase
     .from("team_members")
-    .select("id, username, password, name, is_admin")
+    .select("id, username, password, name, is_admin, status")
     .or(`username.eq.${u},email.eq.${u}`)
     .single();
 
@@ -55,6 +55,20 @@ export async function POST(req: NextRequest) {
     });
     if (logErr) console.error("[audit] gagal catat login_failed:", logErr.message);
     return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
+  }
+
+  if (user.status === "inactive") {
+    const { error: logErr } = await supabase.from("activity_log").insert({
+      user_id: user.id,
+      user_name: user.name || u,
+      action: "login_failed",
+      entity_type: "session",
+      entity_id: null,
+      entity_name: u,
+      details: { reason: "akun_nonaktif" },
+    });
+    if (logErr) console.error("[audit] gagal catat login_failed:", logErr.message);
+    return NextResponse.json({ error: "Akun Anda tidak aktif. Hubungi admin." }, { status: 403 });
   }
 
   const ok = await auditMutation({

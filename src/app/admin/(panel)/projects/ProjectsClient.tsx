@@ -22,11 +22,12 @@ type Props = {
   isAdmin: boolean;
 };
 
-const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
+const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar", archived: "Diarsipkan" };
 const statusColor: Record<string, string> = {
   active: "bg-blue-500/10 text-blue-400",
   completed: "bg-emerald-500/10 text-emerald-400",
   paid: "bg-green-600 text-white",
+  archived: "bg-white/10 text-white/50",
 };
 
 const PER_PAGE = 15;
@@ -91,6 +92,8 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
   }
 
   async function removeAttachment(projectId: string, index: number) {
+    const name = (attachments[projectId] ?? [])[index]?.name ?? "file ini";
+    if (!confirm(`Hapus "${name}" dari daftar lampiran? File tetap tersimpan di penyimpanan.`)) return;
     try {
       const res = await fetch(`/api/admin/projects/${projectId}/attachments`, {
         method: "DELETE",
@@ -123,7 +126,7 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-6">
-        {(["all", "active", "completed", "paid"] as const).map((s) => (
+        {(["all", "active", "completed", "paid", "archived"] as const).map((s) => (
           <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${statusFilter === s ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white" : "bg-[#151515] border border-white/10 text-white/60 hover:bg-white/5"}`}>
             {s === "all" ? "Semua" : statusLabel[s]}

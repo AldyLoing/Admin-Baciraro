@@ -113,14 +113,19 @@ export async function DELETE(req: NextRequest) {
     .select("id, name, username, email, role, division, status, is_admin")
     .eq("id", id)
     .single();
-  const { error } = await supabase.from("team_members").delete().eq("id", id);
+  if (!before) return NextResponse.json({ error: "Anggota tidak ditemukan." }, { status: 404 });
+  if (before.status === "inactive") return NextResponse.json({ error: "Anggota sudah nonaktif." }, { status: 400 });
+
+  const updates = { status: "inactive", is_admin: false, password: null };
+  const { error } = await supabase.from("team_members").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const ok = await auditMutation({
-    supabase, admin, action: "delete", entityType: "member", entityId: Number(id),
+    supabase, admin, action: "deactivate", entityType: "member", entityId: Number(id),
     entityName: before?.name || String(id), before,
+    after: { status: "inactive", is_admin: false, password: "dikosongkan" },
   });
-  if (!ok) return NextResponse.json({ error: "Anggota dihapus, tetapi audit gagal. Periksa log server." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "Anggota dinonaktifkan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }
