@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     tasksRes,
     meetingsRes,
     payoutsRes,
+    productsRes,
   ] = await Promise.all([
     supabase.from("projects").select("id, name, client_name, status").ilike("name", LIKE).limit(5),
     supabase.from("team_members").select("id, name, role").ilike("name", LIKE).limit(5),
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
     supabase.from("tasks").select("id, title, status").ilike("title", LIKE).limit(5),
     supabase.from("meeting_notes").select("id, title, date").ilike("title", LIKE).limit(5),
     supabase.from("payouts").select("id, project_name, status").ilike("project_name", LIKE).limit(5),
+    supabase.from("inventory_items").select("id, name, sku, stok").or(`name.ilike.${LIKE},sku.ilike.${LIKE}`).limit(5),
   ]);
 
   const txErrors = [transactionsDescRes.error, transactionsSourceRes.error].filter(Boolean);
@@ -61,6 +63,7 @@ export async function GET(req: NextRequest) {
       ...(tasksRes.data ?? []).map((t: any) => ({ type: "task", id: t.id, label: t.title || "Tugas", sub: t.status, href: "/admin/schedule" })),
       ...(meetingsRes.data ?? []).map((m: any) => ({ type: "meeting", id: m.id, label: m.title || "Rapat", sub: m.date, href: "/admin/meetings" })),
       ...(payoutsRes.data ?? []).map((p: any) => ({ type: "payout", id: p.id, label: p.project_name || "Payout", sub: p.status, href: `/admin/payouts/${p.id}` })),
+      ...(productsRes.data ?? []).map((p) => ({ type: "product", id: p.id, label: p.name || "Barang", sub: `Barang — stok ${p.stok}${p.sku ? ` (${p.sku})` : ""}`, href: "/admin/inventori" })),
     ],
   });
 }

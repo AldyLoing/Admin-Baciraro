@@ -116,6 +116,7 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 7. `supabase-realtime-tasks.sql` — realtime tasks
 8. `supabase-double-entry.sql` — pembukuan double-entry
 9. `supabase-data-connections.sql` — koneksi data antar fitur
+10. `supabase-inventori.sql` — modul inventori barang (produk, mutasi stok, penjualan)
 
 ### Run Development
 

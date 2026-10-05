@@ -421,7 +421,7 @@ export default function TransactionsClient({ transactions, projects, accounts, i
               <thead>
                 <tr className="text-left text-xs text-white/50 border-b border-white/10">
                   <th className="px-4 py-3 font-medium">Tanggal</th>
-                  <th className="px-4 py-3 font-medium">Referensi</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Referensi</th>
                   <th className="px-4 py-3 font-medium">Jenis</th>
                   <th className="px-4 py-3 font-medium">Keterangan</th>
                   <th className="px-4 py-3 font-medium text-right">Jumlah</th>
@@ -435,7 +435,7 @@ export default function TransactionsClient({ transactions, projects, accounts, i
                   return (
                     <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDate(t.date)}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{t.reference || "-"}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap hidden md:table-cell">{t.reference || "-"}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${t.type === "income" ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"}`}>
                           {typeLabel[t.type]}
