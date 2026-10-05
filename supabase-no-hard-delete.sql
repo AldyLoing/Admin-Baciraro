@@ -87,16 +87,13 @@ BEGIN
 END $$;
 
 -- ============================================================
--- 3. Reuse referensi: email wajib unik (sudah diverifikasi 0 duplikat;
---    NULL diperbolehkan berkali-kali oleh UNIQUE Postgres)
+-- 3. Reuse referensi: email wajib unik — unique index PARSIAL
+--    (hanya email terisi; ''/NULL boleh banyak sehingga tidak
+--    bentrok dengan baris yang belum punya email)
 -- ============================================================
-DO $$
-BEGIN
-  ALTER TABLE team_members ADD CONSTRAINT team_members_email_key UNIQUE (email);
-EXCEPTION
-  WHEN duplicate_table THEN NULL;          -- sudah ada
-  WHEN duplicate_object THEN NULL;         -- sudah ada
-END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS team_members_email_key
+  ON team_members (email)
+  WHERE email IS NOT NULL AND email <> '';
 
 -- ============================================================
 -- 4. Index untuk query filter status aktif
