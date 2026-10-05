@@ -7,7 +7,7 @@ import { useAdminAuth } from "@/lib/admin-auth-context";
 export default function AdminLoginPage() {
   const router = useRouter();
   const { loginAdmin } = useAdminAuth();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -15,13 +15,13 @@ export default function AdminLoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.trim()) {
-      setError("Email wajib diisi.");
+    if (!identifier.trim()) {
+      setError("Email atau username wajib diisi.");
       return;
     }
     setLoading(true);
 
-    const res = await loginAdmin(email.trim(), password);
+    const res = await loginAdmin(identifier.trim(), password);
     setLoading(false);
 
     if (res.error) {
@@ -52,12 +52,13 @@ export default function AdminLoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Email</label>
+              <label className="block text-sm font-medium text-white/70 mb-1">Email atau Username</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="baciraro@gmail.com"
+                type="text"
+                autoComplete="username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="aldyloing atau baciraro@gmail.com"
                 className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition"
               />
             </div>
