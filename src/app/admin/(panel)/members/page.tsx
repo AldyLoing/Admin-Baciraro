@@ -117,21 +117,21 @@ export default async function AdminMembersPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Anggota</p>
-          <p className="text-xl font-bold text-white mt-1">{stats.length} orang</p>
+          <p className="text-base sm:text-xl font-bold text-white mt-1">{stats.length} orang</p>
         </div>
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Project Ditangani</p>
-          <p className="text-xl font-bold text-white mt-1">{stats.reduce((s, m) => s + m.projectCount, 0)}</p>
+          <p className="text-base sm:text-xl font-bold text-white mt-1">{stats.reduce((s, m) => s + m.projectCount, 0)}</p>
           <p className="text-xs text-white/40 mt-1">total keterlibatan</p>
         </div>
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Dibayar ke Anggota</p>
-          <p className="text-xl font-bold text-emerald-400 mt-1">{formatRupiah(totalIncomeAll)}</p>
+          <p className="text-base sm:text-xl font-bold text-emerald-400 mt-1">{formatRupiah(totalIncomeAll)}</p>
           <p className="text-xs text-white/40 mt-1">dari payout</p>
         </div>
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Payout Belum Dibayar</p>
-          <p className="text-xl font-bold text-[#E9A64E] mt-1">{formatRupiah(pendingPayout)}</p>
+          <p className="text-base sm:text-xl font-bold text-[#E9A64E] mt-1">{formatRupiah(pendingPayout)}</p>
           <p className="text-xs text-white/40 mt-1">pending + diproses</p>
         </div>
       </div>
@@ -163,7 +163,7 @@ export default async function AdminMembersPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <p className="text-lg font-bold text-white">{m.projectCount}</p>
                 <p className="text-xs text-white/50">Project</p>

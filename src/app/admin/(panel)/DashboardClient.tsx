@@ -386,7 +386,7 @@ export default function DashboardClient({
           <h2 className="text-lg font-semibold text-white">Neraca Saldo (Ringkas)</h2>
           <Link href="/admin/bookkeeping" className="text-sm text-[#E9A64E] hover:underline">Buku Besar →</Link>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-blue-500/5 rounded-lg p-4 border border-blue-500/10">
             <p className="text-sm text-blue-400 font-medium">Aset (Kas)</p>
             <p className="text-xl font-bold text-blue-400 mt-1">{formatRupiah(kasRiil)}</p>

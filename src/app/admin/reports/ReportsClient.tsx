@@ -158,7 +158,7 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-white/10">
+      <div className="flex flex-wrap items-center gap-1 mb-6 border-b border-white/10">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -177,24 +177,24 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Pendapatan</p>
-            <p className="text-2xl font-bold text-blue-400 mt-2">{formatRupiah(filtered.totalIncome)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-blue-400 mt-2">{formatRupiah(filtered.totalIncome)}</p>
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Pengeluaran</p>
-            <p className="text-2xl font-bold text-red-400 mt-2">{formatRupiah(filtered.totalExpense)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-400 mt-2">{formatRupiah(filtered.totalExpense)}</p>
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Bersih (Income - Expense)</p>
-            <p className={`text-2xl font-bold mt-2 ${filtered.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.netProfit)}</p>
+            <p className={`text-lg sm:text-2xl font-bold mt-2 ${filtered.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.netProfit)}</p>
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Siap Distribusi</p>
-            <p className={`text-2xl font-bold mt-2 ${filtered.confirmedNet >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.confirmedNet)}</p>
+            <p className={`text-lg sm:text-2xl font-bold mt-2 ${filtered.confirmedNet >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.confirmedNet)}</p>
             <p className="text-[11px] text-white/40 mt-1">Payout sudah selesai</p>
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Kas Baciraro</p>
-            <p className="text-2xl font-bold text-[#E9A64E] mt-2">{formatRupiah(filtered.totalKas)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-[#E9A64E] mt-2">{formatRupiah(filtered.totalKas)}</p>
           </div>
         </div>
       )}

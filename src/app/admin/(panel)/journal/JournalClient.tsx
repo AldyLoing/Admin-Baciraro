@@ -331,8 +331,8 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                 const totalD = formLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
                 const totalC = formLines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
                 return (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-4">
+                  <div key={idx} className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
+                    <div className="col-span-2 sm:col-span-4">
                       {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Akun</label>}
                       <select value={line.account_code} onChange={(e) => updateLine(idx, "account_code", Number(e.target.value))} className={selectCls + " text-sm"}>
                         {accounts.map((a) => (
@@ -340,11 +340,11 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                         ))}
                       </select>
                     </div>
-                    <div className="col-span-3">
+                    <div className="col-span-1 sm:col-span-3">
                       {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Debit</label>}
                       <input type="number" min="0" step="100" value={line.debit || ""} onChange={(e) => updateLine(idx, "debit", Number(e.target.value))} placeholder="0" className={inputCls + " text-sm"} />
                     </div>
-                    <div className="col-span-3">
+                    <div className="col-span-1 sm:col-span-3">
                       {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Kredit</label>}
                       <input type="number" min="0" step="100" value={line.credit || ""} onChange={(e) => updateLine(idx, "credit", Number(e.target.value))} placeholder="0" className={inputCls + " text-sm"} />
                     </div>

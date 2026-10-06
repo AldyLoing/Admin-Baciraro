@@ -265,7 +265,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
             )}
             <div className="space-y-2">
               {form.default_members.map((m, i) => (
-                <div key={i} className="grid grid-cols-[1fr_100px_32px] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_100px_32px] gap-2 items-center">
                   <select
                     value={m.member_id ?? ""}
                     onChange={(e) => {
@@ -326,7 +326,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
             )}
             <div className="space-y-2">
               {form.default_tasks.map((t, i) => (
-                <div key={i} className="grid grid-cols-[1fr_120px_90px_32px] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_72px_64px_32px] sm:grid-cols-[minmax(0,1fr)_120px_90px_32px] gap-2 items-center">
                   <input
                     type="text"
                     value={t.title}

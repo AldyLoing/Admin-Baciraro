@@ -60,6 +60,7 @@ export default function InvoicePrint({ payout }: { payout: Payout }) {
         <p className="text-gray-700">{payout.project_name}</p>
       </div>
 
+      <div className="overflow-x-auto">
       <table className="w-full mb-6 text-sm">
         <thead>
           <tr className="border-b border-gray-200">
@@ -88,8 +89,10 @@ export default function InvoicePrint({ payout }: { payout: Payout }) {
           </tr>
         </tbody>
       </table>
+      </div>
 
       <h2 className="font-semibold text-lg mb-3">Rincian per Anggota</h2>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm mb-8">
         <thead>
           <tr className="border-b border-gray-200">
@@ -111,6 +114,7 @@ export default function InvoicePrint({ payout }: { payout: Payout }) {
           ))}
         </tbody>
       </table>
+      </div>
 
       <div className="border-t border-gray-200 pt-4 text-xs text-gray-400 text-center">
         <p>Dicetak pada {new Date().toLocaleDateString("id-ID", { dateStyle: "full" })}</p>

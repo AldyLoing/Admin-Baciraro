@@ -125,7 +125,7 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 mb-6">
+      <div className="flex flex-wrap flex-col sm:flex-row gap-2 mb-6">
         {(["all", "active", "completed", "paid", "archived"] as const).map((s) => (
           <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${statusFilter === s ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white" : "bg-[#151515] border border-white/10 text-white/60 hover:bg-white/5"}`}>
@@ -235,7 +235,7 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
                                 <p className="text-xs text-white/30">Belum ada lampiran.</p>
                               )}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <input value={attachName} onChange={(e) => setAttachName(e.target.value)} placeholder="Nama file" className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm placeholder:text-white/25 focus:border-[#D97A2B] outline-none" />
                               <input value={attachUrl} onChange={(e) => setAttachUrl(e.target.value)} placeholder="URL (opsional)" className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm placeholder:text-white/25 focus:border-[#D97A2B] outline-none" />
                               <button onClick={() => addAttachment(project.id)} disabled={attachLoading === project.id}

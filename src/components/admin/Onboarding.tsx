@@ -129,7 +129,7 @@ export default function Onboarding() {
                 </svg>
               )}
             </span>
-            <span className="truncate">{item.label}</span>
+            <span className="truncate min-w-0">{item.label}</span>
           </button>
         ))}
       </div>

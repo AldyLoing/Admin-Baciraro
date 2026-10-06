@@ -532,7 +532,7 @@ export default function PayoutsClient({
         </form>
       )}
 
-      <div className="flex gap-2 mb-6 print:hidden">
+      <div className="flex flex-wrap gap-2 mb-6 print:hidden">
         {(["all", "pending", "processing", "paid", "cancelled"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === f ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white" : "bg-[#151515] border border-white/10 text-white/60 hover:bg-white/5"}`}>
@@ -553,7 +553,7 @@ export default function PayoutsClient({
             const isOpen = !!expanded[p.id];
             return (
               <div key={p.id} className="bg-[#151515] rounded-xl border border-white/10">
-                <div className="flex items-center gap-4 p-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 p-4">
                   <button onClick={() => toggleExpand(p.id)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition print:hidden" aria-label="Rincian">
                     <svg className={`w-5 h-5 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -580,7 +580,7 @@ export default function PayoutsClient({
                       </span>
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <div className="ml-auto flex items-center gap-2 shrink-0 print:hidden">
                     {isAdmin && p.status === "pending" && (
                       <button onClick={() => updateStatus(p.id, "processing")}
                         className="px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-400 text-xs font-medium hover:bg-blue-500/10 transition">
@@ -688,6 +688,7 @@ export default function PayoutsClient({
                       </div>
                     )}
                     {ms.length > 0 ? (
+                      <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -712,6 +713,7 @@ export default function PayoutsClient({
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     ) : (
                       <p className="text-xs text-white/40 text-center py-2">Tidak ada rincian member.</p>
                     )}

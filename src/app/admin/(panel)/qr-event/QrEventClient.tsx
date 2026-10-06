@@ -25,9 +25,9 @@ function QrImage({ value }: { value: string }) {
       .catch(() => {});
     return () => { active = false; };
   }, [value]);
-  if (!src) return <div className="w-[320px] h-[320px] bg-white/10 animate-pulse rounded-lg" />;
+  if (!src) return <div className="w-full max-w-[320px] aspect-square bg-white/10 animate-pulse rounded-lg" />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="QR Code" className="w-[320px] h-[320px] rounded-lg" />;
+  return <img src={src} alt="QR Code" className="w-full max-w-[320px] aspect-square rounded-lg" />;
 }
 
 export default function QrEventClient() {

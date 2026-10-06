@@ -1198,10 +1198,10 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
               </div>
 
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-2 text-xs text-white/50 font-medium">
-                  <div className="col-span-5">Barang</div>
-                  <div className="col-span-2">Jumlah</div>
-                  <div className="col-span-3">Harga Jual</div>
+                <div className="hidden sm:grid grid-cols-12 gap-2 text-xs text-white/50 font-medium">
+                  <div className="col-span-2 sm:col-span-5">Barang</div>
+                  <div className="col-span-1 sm:col-span-2">Jumlah</div>
+                  <div className="col-span-1 sm:col-span-3">Harga Jual</div>
                   <div className="col-span-2 text-right">Subtotal</div>
                 </div>
                 {saleItems.map((it, idx) => {
@@ -1209,8 +1209,8 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                   const subtotal = (Number(it.qty) || 0) * (Number(it.harga_jual) || 0);
                   const overStock = p ? (Number(it.qty) || 0) > p.stok : false;
                   return (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-5">
+                    <div key={idx} className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-center">
+                      <div className="col-span-2 sm:col-span-5">
                         <select value={it.product_id} onChange={(e) => onSaleProductChange(idx, e.target.value)} className={selectCls}>
                           <option value="">— Pilih barang —</option>
                           {products
@@ -1222,7 +1222,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                             ))}
                         </select>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1 sm:col-span-2">
                         <input
                           type="number"
                           min={1}
@@ -1232,7 +1232,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                           placeholder="1"
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-1 sm:col-span-3">
                         <input
                           type="number"
                           min={0}
@@ -1256,7 +1256,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                         </button>
                       </div>
                       {overStock && (
-                        <div className="col-span-12 text-xs text-red-400 -mt-1">
+                        <div className="col-span-2 sm:col-span-12 text-xs text-red-400 -mt-1">
                           Stok {p?.name} tidak cukup (sisa {p?.stok} {p?.unit}).
                         </div>
                       )}
@@ -1505,6 +1505,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                 <div className="text-white/40 text-sm text-center py-8">Belum ada mutasi untuk barang ini.</div>
               )}
               {!historyLoading && historyRows.length > 0 && (
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -1536,6 +1537,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>
