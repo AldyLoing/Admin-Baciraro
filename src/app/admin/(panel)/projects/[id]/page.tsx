@@ -26,7 +26,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [{ data: projectMembers }, { data: allMembers }, { data: transactions }, { data: payouts }, { data: activities }] = await Promise.all([
+  const [{ data: projectMembers }, { data: allMembers }, { data: transactions }, { data: payouts }, { data: activities }, { data: installments }] = await Promise.all([
     supabase
       .from("project_members")
       .select("id, member_id, name, contribution_percent, amount, tugas, team_members(id, name, role, photo_url)")
@@ -54,6 +54,11 @@ export default async function ProjectDetailPage({
       .eq("entity_id", id)
       .order("created_at", { ascending: false })
       .limit(100),
+    supabase
+      .from("project_installments")
+      .select("id, installment_no, amount, date, note, status, payout_id")
+      .eq("project_id", id)
+      .order("installment_no", { ascending: true }),
   ]);
 
   const contributions = (projectMembers ?? []).map((pm: any) => ({
@@ -70,6 +75,17 @@ export default async function ProjectDetailPage({
   const allPayouts = (payouts ?? []) as any[];
   const totalPaidPayout = allPayouts.filter((p: any) => p.status === "paid").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
   const pendingPayout = allPayouts.filter((p: any) => p.status !== "paid" && p.status !== "cancelled").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
+
+  // Sisa tagihan klien = total_value − Σ income "Pembayaran klien%"
+  // (mencakup pembayaran lama & cicilan → project lama ikut terbaca benar).
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const totalValue = round2(Number(project.total_value) || 0);
+  const paidKlien = round2(
+    activeTx
+      .filter((t) => t.type === "income" && (t.source ?? "").startsWith("Pembayaran klien"))
+      .reduce((s, t) => s + Number(t.amount), 0)
+  );
+  const sisaTagihan = Math.max(0, round2(totalValue - paidKlien));
 
   const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
   const statusColor: Record<string, string> = {
@@ -111,6 +127,13 @@ export default async function ProjectDetailPage({
           entity_name: a.entity_name ?? "-", details: a.details,
           created_at: a.created_at,
         }))}
+        installments={(installments ?? []).map((i) => ({
+          id: Number(i.id), installment_no: Number(i.installment_no),
+          amount: Number(i.amount), date: i.date, note: i.note ?? null,
+          status: i.status ?? "active", payout_id: i.payout_id == null ? null : Number(i.payout_id),
+        }))}
+        sisaTagihan={sisaTagihan}
+        paidKlien={paidKlien}
         totalIncome={totalIncome}
         totalExpense={totalExpense}
         totalPaidPayout={totalPaidPayout}

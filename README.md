@@ -9,6 +9,8 @@ Panel manajemen internal untuk organisasi Baciraro — dibangun dengan **Next.js
 
 ### Manajemen Project
 - CRUD project dengan nama, klien, nilai, status (aktif / selesai / dibayar)
+- **Cicilan pembayaran** — klien bayar bertahap: tambah cicilan → kas tercatat + sisa tagihan otomatis berkurang; saat sisa 0 project otomatis "Dibayar" (bisa juga bayar sekali jadi lewat Tandai Dibayar)
+- **Bagikan cicilan ke tim** — per cicilan bisa dibuat 1 payout (fee Kas Baciraro 10% + persen kontribusi) dan notifikasi hak anggota in-app
 - Manajemen anggota kontributor per project (persentase + tugas)
 - Template project untuk inisialisasi cepat
 - Lampiran file per project
@@ -119,6 +121,7 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 10. `supabase-inventori.sql` — modul inventori barang (produk, mutasi stok, penjualan)
 11. `supabase-setval.sql` — reset sequence id ke MAX(id) (sekali jalan, setelah insert data manual/migrasi)
 12. `supabase-audit-immutable.sql` — trigger audit trail immutable: baris `activity_log` tidak bisa di-update/di-delete (sekali jalan; hanya transisi `user_id → NULL` yang diizinkan)
+13. `supabase-project-installments.sql` — tabel cicilan project (bayar bertahap + pembagian per cicilan)
 
 ### Buat Akun Anggota (sekali jalan)
 
@@ -145,6 +148,7 @@ team_members (ROOT)
   ├── project_members → projects
   ├── transactions → journal_entries → journal_entry_lines → accounts
   ├── payouts → payout_members
+  ├── project_installments → transactions, payouts
   ├── tasks (self-ref: recurrence)
   ├── meeting_notes → meeting_note_attendees, action_items
   ├── activity_log

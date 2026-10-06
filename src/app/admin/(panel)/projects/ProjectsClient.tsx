@@ -14,6 +14,7 @@ type Project = {
   total_value: number;
   status: string;
   created_at: string;
+  sisa_tagihan?: number;
   attachments?: Array<{ name: string; url: string; size: number; uploaded_at: string }>;
 };
 
@@ -154,6 +155,7 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
                     <th className="px-5 py-3 font-medium">Project</th>
                     <th className="px-5 py-3 font-medium">Klien</th>
                     <th className="px-5 py-3 font-medium">Nilai</th>
+                    <th className="px-5 py-3 font-medium">Sisa Tagihan</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Dibuat</th>
                     <th className="px-5 py-3 font-medium text-right">Aksi</th>
@@ -180,6 +182,17 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
                       </td>
                       <td className="px-5 py-4 text-white/50">{project.client_name || "-"}</td>
                       <td className="px-5 py-4 font-semibold text-white">{formatRupiah(project.total_value)}</td>
+                      <td className="px-5 py-4">
+                        {project.total_value > 0 ? (
+                          project.sisa_tagihan && project.sisa_tagihan > 0 ? (
+                            <span className="text-[#E9A64E] font-medium">{formatRupiah(project.sisa_tagihan)}</span>
+                          ) : (
+                            <span className="text-emerald-400 text-xs font-medium">Lunas</span>
+                          )
+                        ) : (
+                          <span className="text-white/30">-</span>
+                        )}
+                      </td>
                       <td className="px-5 py-4">
                         <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[project.status]}`}>
                           {statusLabel[project.status] ?? project.status}
@@ -217,7 +230,7 @@ export default function ProjectsClient({ projects, isAdmin }: Props) {
                     </tr>
                     {expandedId === project.id && isAdmin && (
                       <tr key={`${project.id}-att`}>
-                        <td colSpan={6} className="px-5 py-3 bg-[#0d0d0d]">
+                        <td colSpan={7} className="px-5 py-3 bg-[#0d0d0d]">
                           <div className="space-y-2">
                             <p className="text-xs font-semibold text-white/50 uppercase">Lampiran</p>
                             <div className="space-y-1">

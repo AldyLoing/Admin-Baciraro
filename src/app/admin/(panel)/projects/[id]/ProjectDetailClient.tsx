@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatRupiah, formatDate, KAS_PERCENT } from "@/lib/admin/format";
 
 type Project = {
@@ -32,6 +33,7 @@ type TxRow = { id: string; date: string; type: string; amount: number; source: s
 type PayoutRow = { id: string; date: string; total_amount: number; orders_fee: number; net_amount: number; status: string; kas_optional_amount: number };
 type ActivityRow = { id: number; user_name: string; action: string; entity_name: string; details: unknown; created_at: string };
 type Attachment = { name: string; url: string; size: number; uploaded_at: string };
+type InstallmentRow = { id: number; installment_no: number; amount: number; date: string; note: string | null; status: string; payout_id: number | null };
 
 type Props = {
   project: Project;
@@ -43,6 +45,9 @@ type Props = {
   transactions: TxRow[];
   payouts: PayoutRow[];
   activities: ActivityRow[];
+  installments: InstallmentRow[];
+  sisaTagihan: number;
+  paidKlien: number;
   totalIncome: number;
   totalExpense: number;
   totalPaidPayout: number;
@@ -65,6 +70,9 @@ export default function ProjectDetailClient({
   transactions: initialTx,
   payouts: initialPayouts,
   activities: initialActivities,
+  installments: initialInstallments,
+  sisaTagihan,
+  paidKlien,
   totalIncome,
   totalExpense,
   totalPaidPayout,
@@ -104,6 +112,11 @@ export default function ProjectDetailClient({
     } catch { return []; }
   });
   const [uploading, setUploading] = useState(false);
+  const [instAmount, setInstAmount] = useState("");
+  const [instDate, setInstDate] = useState(new Date().toISOString().slice(0, 10));
+  const [instNote, setInstNote] = useState("");
+  const [instLoading, setInstLoading] = useState<string | null>(null);
+  const installments = initialInstallments;
 
   function showError(msg: string) { setError(msg); setSuccess(null); }
   function showSuccess(msg: string) { setSuccess(msg); setError(null); }
@@ -217,6 +230,54 @@ export default function ProjectDetailClient({
 
   const availableNewMembers = allMembers.filter((m) => !members.some((mm) => mm.member_id === m.id));
 
+  async function addInstallment() {
+    const amount = Number(instAmount);
+    if (!amount || amount <= 0 || isNaN(amount)) { showError("Nominal cicilan harus lebih dari 0."); return; }
+    setInstLoading("add");
+    setError(null);
+    const res = await fetch(`/api/admin/projects/${project.id}/installments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, date: instDate, note: instNote.trim() || undefined }),
+    });
+    const data = await res.json();
+    setInstLoading(null);
+    if (!res.ok || !data.ok) { showError("Gagal menambah cicilan: " + (data.error ?? "unknown")); return; }
+    setInstAmount(""); setInstNote("");
+    if (data.lunas) setProject((p) => ({ ...p, status: "paid", completed_at: p.completed_at ?? new Date().toISOString() }));
+    showSuccess(data.message ?? "Cicilan dicatat.");
+    router.refresh();
+  }
+
+  async function distributeInstallment(inst: InstallmentRow) {
+    if (!confirm(`Bagikan Cicilan ${inst.installment_no} senilai ${formatRupiah(inst.amount)} ke tim sekarang?\n\nAkan dibuat 1 payout (porsi per persen kontribusi) yang tinggal diproses.`)) return;
+    setInstLoading(String(inst.id));
+    setError(null);
+    const res = await fetch(`/api/admin/projects/${project.id}/installments/${inst.id}/distribute`, { method: "POST" });
+    const data = await res.json();
+    setInstLoading(null);
+    if (!res.ok || !data.ok) { showError("Gagal membagikan: " + (data.error ?? "unknown")); return; }
+    showSuccess(data.message ?? "Cicilan dibagikan ke tim.");
+    router.refresh();
+  }
+
+  async function voidInstallment(inst: InstallmentRow) {
+    if (!confirm(`Batalkan Cicilan ${inst.installment_no} senilai ${formatRupiah(inst.amount)}?\n\nPemasukan kas ikut dibatalkan (netral) dan sisa tagihan kembali. Riwayat tetap tersimpan.`)) return;
+    setInstLoading(`v${inst.id}`);
+    setError(null);
+    const res = await fetch(`/api/admin/projects/${project.id}/installments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: inst.id }),
+    });
+    const data = await res.json();
+    setInstLoading(null);
+    if (!res.ok || !data.ok) { showError("Gagal membatalkan: " + (data.error ?? "unknown")); return; }
+    if (data.status) setProject((p) => ({ ...p, status: data.status }));
+    showSuccess(data.message ?? "Cicilan dibatalkan.");
+    router.refresh();
+  }
+
   const remainingFunds = totalIncome - totalExpense - totalPaidPayout;
 
   const tabs: { key: Tab; label: string }[] = [
@@ -306,18 +367,18 @@ export default function ProjectDetailClient({
               <div><p className="text-xs text-white/40">Selesai</p><p className="text-sm font-medium text-white">{project.completed_at ? formatDate(project.completed_at) : "-"}</p></div>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <p className="text-xs font-medium text-white/50 uppercase">Total Pendapatan</p>
-              <p className="text-xl font-bold text-blue-400 mt-1">{formatRupiah(totalIncome)}</p>
+              <p className="text-base sm:text-xl font-bold text-blue-400 mt-1">{formatRupiah(totalIncome)}</p>
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <p className="text-xs font-medium text-white/50 uppercase">Total Pengeluaran</p>
-              <p className="text-xl font-bold text-red-400 mt-1">{formatRupiah(totalExpense)}</p>
+              <p className="text-base sm:text-xl font-bold text-red-400 mt-1">{formatRupiah(totalExpense)}</p>
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <p className="text-xs font-medium text-white/50 uppercase">Sudah Dibayar</p>
-              <p className="text-xl font-bold text-amber-400 mt-1">{formatRupiah(totalPaidPayout)}</p>
+              <p className="text-base sm:text-xl font-bold text-amber-400 mt-1">{formatRupiah(totalPaidPayout)}</p>
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <p className="text-xs font-medium text-white/50 uppercase">Sisa Dana</p>
@@ -325,10 +386,24 @@ export default function ProjectDetailClient({
                 {pendingPayout > 0 ? (
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400">Proses</span>
                 ) : (
-                  <p className={`text-xl font-bold ${remainingFunds >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(remainingFunds)}</p>
+                  <p className={`text-base sm:text-xl font-bold ${remainingFunds >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(remainingFunds)}</p>
                 )}
               </div>
               {pendingPayout > 0 && <p className="text-[11px] text-white/40 mt-1">Menunggu pencairan payout</p>}
+            </div>
+            <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+              <p className="text-xs font-medium text-white/50 uppercase">Sisa Tagihan Klien</p>
+              {sisaTagihan > 0 ? (
+                <>
+                  <p className="text-base sm:text-xl font-bold text-[#E9A64E] mt-1">{formatRupiah(sisaTagihan)}</p>
+                  <p className="text-[11px] text-white/40 mt-1">{formatRupiah(paidKlien)} dari {formatRupiah(project.total_value)} masuk</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-base sm:text-xl font-bold text-emerald-400 mt-1">Lunas</p>
+                  <p className="text-[11px] text-white/40 mt-1">{formatRupiah(paidKlien)} dari {formatRupiah(project.total_value)} masuk</p>
+                </>
+              )}
             </div>
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
@@ -345,6 +420,124 @@ export default function ProjectDetailClient({
       {/* Tab: Keuangan */}
       {activeTab === "keuangan" && (
         <div className="space-y-6">
+          <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 className="text-sm font-semibold text-white/70">Cicilan Pembayaran</h3>
+              <div className="flex items-center gap-3 text-xs text-white/50">
+                <span>Tagihan <span className="text-white font-semibold">{formatRupiah(project.total_value)}</span></span>
+                <span>Masuk <span className="text-blue-400 font-semibold">{formatRupiah(paidKlien)}</span></span>
+                <span>Sisa <span className={`font-semibold ${sisaTagihan > 0 ? "text-[#E9A64E]" : "text-emerald-400"}`}>{sisaTagihan > 0 ? formatRupiah(sisaTagihan) : "Lunas"}</span></span>
+              </div>
+            </div>
+
+            {/* Progress pembayaran klien */}
+            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-5">
+              <div
+                className="h-full bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] rounded-full transition-all"
+                style={{ width: `${Math.min(100, project.total_value > 0 ? (paidKlien / project.total_value) * 100 : 0)}%` }}
+              />
+            </div>
+
+            {/* Form tambah cicilan */}
+            {isAdmin && sisaTagihan > 0 && project.status !== "archived" && (
+              <div className="flex flex-col sm:flex-row gap-2 mb-5">
+                <div className="relative sm:w-56">
+                  <input
+                    type="number" min={1} max={sisaTagihan} step="any"
+                    value={instAmount}
+                    onChange={(e) => setInstAmount(e.target.value)}
+                    placeholder={`Nominal (maks ${sisaTagihan.toLocaleString("id-ID")})`}
+                    className={inputCls + " text-sm pr-14"}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">Rp</span>
+                </div>
+                <input type="date" value={instDate} onChange={(e) => setInstDate(e.target.value)} className={inputCls + " text-sm sm:w-44"} />
+                <input
+                  type="text" value={instNote}
+                  onChange={(e) => setInstNote(e.target.value)}
+                  placeholder="Catatan (opsional)"
+                  maxLength={300}
+                  className={inputCls + " text-sm sm:flex-1"}
+                />
+                <button
+                  onClick={addInstallment}
+                  disabled={instLoading === "add"}
+                  className="shrink-0 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-60"
+                >
+                  {instLoading === "add" ? "Menyimpan..." : "Tambah Cicilan"}
+                </button>
+              </div>
+            )}
+
+            {/* Riwayat cicilan */}
+            {installments.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-white/50 border-b border-white/10">
+                      <th className="px-3 py-2 font-medium">Ke</th>
+                      <th className="px-3 py-2 font-medium">Tanggal</th>
+                      <th className="px-3 py-2 font-medium text-right">Nominal</th>
+                      <th className="px-3 py-2 font-medium">Catatan</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {installments.map((inst) => {
+                      const isVoid = inst.status === "void";
+                      return (
+                        <tr key={inst.id} className={`border-b border-white/5 hover:bg-white/5 ${isVoid ? "opacity-50" : ""}`}>
+                          <td className="px-3 py-2 text-white/60">#{inst.installment_no}</td>
+                          <td className="px-3 py-2 text-white/60 whitespace-nowrap">{formatDate(inst.date)}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${isVoid ? "text-white/40 line-through" : "text-white"}`}>{formatRupiah(inst.amount)}</td>
+                          <td className="px-3 py-2 text-white/60">{inst.note || "-"}</td>
+                          <td className="px-3 py-2">
+                            {isVoid ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-500/10 text-red-400">Dibatalkan</span>
+                            ) : inst.payout_id ? (
+                              <Link href="/admin/payouts" className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:underline">Dibagikan →</Link>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400">Belum dibagikan</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {isAdmin && !isVoid && (
+                              <div className="inline-flex items-center gap-2">
+                                {!inst.payout_id && (
+                                  <button
+                                    onClick={() => distributeInstallment(inst)}
+                                    disabled={instLoading === String(inst.id)}
+                                    className="px-2.5 py-1 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-medium hover:bg-emerald-500/10 transition disabled:opacity-60"
+                                  >
+                                    {instLoading === String(inst.id) ? "Membagikan..." : "Bagikan ke Tim"}
+                                  </button>
+                                )}
+                                {!inst.payout_id && (
+                                  <button
+                                    onClick={() => voidInstallment(inst)}
+                                    disabled={instLoading === `v${inst.id}`}
+                                    className="px-2.5 py-1 rounded-lg border border-white/15 text-white/50 text-xs font-medium hover:bg-white/5 hover:text-red-400 transition disabled:opacity-60"
+                                  >
+                                    Batalkan
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-white/40">
+                Belum ada cicilan. Klien bayar sekaligus? Biarkan — pakai tombol <span className="text-white/70">Tandai Dibayar</span> di daftar project,
+                atau catat sekali cicilan senilai penuh di sini.
+              </p>
+            )}
+          </div>
           {tx.length > 0 && (
             <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
