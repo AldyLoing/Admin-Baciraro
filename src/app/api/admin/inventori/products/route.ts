@@ -5,7 +5,7 @@ import { journalForMovement } from "@/lib/admin/inventori";
 import { auditMutation } from "@/lib/admin/audit";
 
 const PRODUCT_SELECT =
-  "id, sku, name, category, unit, harga_modal, harga_jual, stok, stok_min, is_active, notes, created_at, updated_at";
+  "id, sku, name, category, unit, harga_modal, harga_jual, stok, stok_min, is_active, is_raw_material, notes, created_at, updated_at";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -35,8 +35,12 @@ export async function POST(req: NextRequest) {
   const stokAwal = Math.trunc(Number(body.stok) || 0);
   const stokMin = Math.trunc(Number(body.stok_min) || 0);
   const notes = String(body.notes ?? "").trim();
+  const isRawMaterial = !!body.is_raw_material;
 
   if (!name) return NextResponse.json({ error: "Nama barang wajib diisi." }, { status: 400 });
+  if (isRawMaterial && hargaJual > 0) {
+    return NextResponse.json({ error: "Bahan baku tidak boleh punya harga jual." }, { status: 400 });
+  }
   if (hargaModal < 0 || hargaJual < 0) {
     return NextResponse.json({ error: "Harga tidak boleh negatif." }, { status: 400 });
   }
@@ -59,6 +63,7 @@ export async function POST(req: NextRequest) {
       stok_min: stokMin,
       notes,
       is_active: true,
+      is_raw_material: isRawMaterial,
     })
     .select("id, name")
     .single();
@@ -105,7 +110,7 @@ export async function POST(req: NextRequest) {
   const okCreate = await auditMutation({
     supabase, admin, action: "create", entityType: "product",
     entityId: product.id, entityName: name,
-    after: { sku, name, category, unit, harga_modal: hargaModal, harga_jual: hargaJual, stok: stokAwal, stok_min: stokMin, notes },
+    after: { sku, name, category, unit, harga_modal: hargaModal, harga_jual: hargaJual, stok: stokAwal, stok_min: stokMin, notes, is_raw_material: isRawMaterial },
     extra: { stok_awal: stokAwal },
   });
   if (!okCreate) return NextResponse.json({ error: "Barang dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
@@ -147,10 +152,17 @@ export async function PATCH(req: NextRequest) {
     patch.stok_min = v;
   }
   if (body.is_active !== undefined) patch.is_active = !!body.is_active;
+  if (body.is_raw_material !== undefined) patch.is_raw_material = !!body.is_raw_material;
 
   const supabase = createAdminClient();
   const { data: before, error: fetchError } = await supabase.from("inventory_items").select("*").eq("id", id).single();
   if (fetchError || !before) return NextResponse.json({ error: "Barang tidak ditemukan." }, { status: 404 });
+
+  const finalRaw = (patch.is_raw_material ?? before.is_raw_material) === true;
+  const finalJual = Number(patch.harga_jual ?? before.harga_jual) || 0;
+  if (finalRaw && finalJual > 0) {
+    return NextResponse.json({ error: "Bahan baku tidak boleh punya harga jual." }, { status: 400 });
+  }
 
   const { error } = await supabase.from("inventory_items").update(patch).eq("id", id);
   if (error) {

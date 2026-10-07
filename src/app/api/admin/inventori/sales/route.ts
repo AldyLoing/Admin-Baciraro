@@ -28,6 +28,7 @@ type ProductRow = {
   harga_modal: number;
   harga_jual: number;
   is_active: boolean;
+  is_raw_material: boolean;
 };
 
 export async function GET(req: NextRequest) {
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
   const productIds = [...new Set(normalized.map((i) => i.product_id))];
   const { data: products, error: productError } = await supabase
     .from("inventory_items")
-    .select("id, name, sku, unit, stok, harga_modal, harga_jual, is_active")
+    .select("id, name, sku, unit, stok, harga_modal, harga_jual, is_active, is_raw_material")
     .in("id", productIds);
 
   if (productError) return NextResponse.json({ error: "Gagal memuat barang: " + productError.message }, { status: 400 });
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     const p = productMap.get(it.product_id);
     if (!p) return NextResponse.json({ error: "Ada barang yang tidak ditemukan." }, { status: 400 });
     if (!p.is_active) return NextResponse.json({ error: `Barang "${p.name}" nonaktif.` }, { status: 400 });
+    if (p.is_raw_material) return NextResponse.json({ error: `Bahan baku "${p.name}" tidak bisa dijual.` }, { status: 400 });
     needed.set(it.product_id, (needed.get(it.product_id) ?? 0) + it.qty);
   }
   for (const [pid, qty] of needed) {

@@ -57,6 +57,7 @@ Panel manajemen internal untuk organisasi Baciraro — dibangun dengan **Next.js
 - Notifikasi real-time
 - QR Koin Event (loyalty points)
 - Leaderboard customer
+- Inventori **Bahan Baku** — tab khusus: stok & mutasi jalan normal, tetapi tidak bisa dijual
 
 ## Tech Stack
 
@@ -122,6 +123,7 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 11. `supabase-setval.sql` — reset sequence id ke MAX(id) (sekali jalan, setelah insert data manual/migrasi)
 12. `supabase-audit-immutable.sql` — trigger audit trail immutable: baris `activity_log` tidak bisa di-update/di-delete (sekali jalan; hanya transisi `user_id → NULL` yang diizinkan)
 13. `supabase-project-installments.sql` — tabel cicilan project (bayar bertahap + pembagian per cicilan)
+14. `supabase-inventori-bahan-baku.sql` — kolom `is_raw_material` di `inventory_items` (fitur Bahan Baku)
 
 ### Buat Akun Anggota (sekali jalan)
 

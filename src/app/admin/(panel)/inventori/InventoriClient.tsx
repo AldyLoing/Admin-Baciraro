@@ -16,6 +16,7 @@ export type Product = {
   stok: number;
   stok_min: number;
   is_active: boolean;
+  is_raw_material: boolean;
   notes: string;
   created_at: string;
 };
@@ -67,10 +68,11 @@ type Props = {
   isAdmin: boolean;
 };
 
-type Tab = "barang" | "mutasi" | "penjualan" | "laporan";
+type Tab = "barang" | "bahan" | "mutasi" | "penjualan" | "laporan";
 
 const tabs: { key: Tab; label: string }[] = [
   { key: "barang", label: "Barang" },
+  { key: "bahan", label: "Bahan Baku" },
   { key: "mutasi", label: "Mutasi Stok" },
   { key: "penjualan", label: "Penjualan" },
   { key: "laporan", label: "Laporan" },
@@ -115,6 +117,7 @@ const emptyProductForm = {
   stok_min: "",
   notes: "",
   is_active: true,
+  is_raw_material: false,
 };
 
 const emptyMovementForm = {
@@ -151,6 +154,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   const [saving, setSaving] = useState(false);
 
   const [barangSearch, setBarangSearch] = useState("");
+  const [bahanSearch, setBahanSearch] = useState("");
   const [mutasiSearch, setMutasiSearch] = useState("");
   const [mutasiType, setMutasiType] = useState("");
   const [mutasiReason, setMutasiReason] = useState("");
@@ -203,15 +207,28 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    if (!barangSearch) return products;
+    const base = products.filter((p) => !p.is_raw_material);
+    if (!barangSearch) return base;
     const q = barangSearch.toLowerCase();
-    return products.filter(
+    return base.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.sku ?? "").toLowerCase().includes(q) ||
         p.category.toLowerCase().includes(q)
     );
   }, [products, barangSearch]);
+
+  const filteredBahan = useMemo(() => {
+    const base = products.filter((p) => p.is_raw_material);
+    if (!bahanSearch) return base;
+    const q = bahanSearch.toLowerCase();
+    return base.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.sku ?? "").toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    );
+  }, [products, bahanSearch]);
 
   const filteredMovements = useMemo(() => {
     const q = mutasiSearch.toLowerCase();
@@ -241,6 +258,8 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }, [sales, penjualanSearch]);
 
   const lowStock = useMemo(() => products.filter((p) => p.is_active && p.stok <= p.stok_min), [products]);
+  const lowStockBarang = useMemo(() => lowStock.filter((p) => !p.is_raw_material), [lowStock]);
+  const lowStockBahan = useMemo(() => lowStock.filter((p) => p.is_raw_material), [lowStock]);
   const valuation = useMemo(
     () => products.filter((p) => p.is_active).reduce((sum, p) => sum + p.stok * p.harga_modal, 0),
     [products]
@@ -260,10 +279,10 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
     return [...map.entries()].sort((a, b) => b[1].terjual - a[1].terjual);
   }, [sales, productMap]);
 
-  // ---------- Barang ----------
-  function openCreateProduct() {
+  // ---------- Barang / Bahan ----------
+  function openCreateProduct(isRaw: boolean) {
     setEditingProduct(null);
-    setProductForm(emptyProductForm);
+    setProductForm({ ...emptyProductForm, is_raw_material: isRaw, category: isRaw ? "Bahan Baku" : "" });
     setShowProductForm(true);
     setError(null);
     setSuccess(null);
@@ -282,6 +301,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
       stok_min: String(p.stok_min),
       notes: p.notes,
       is_active: p.is_active,
+      is_raw_material: p.is_raw_material,
     });
     setShowProductForm(true);
     setError(null);
@@ -305,6 +325,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
           stok_min: Number(productForm.stok_min) || 0,
           notes: productForm.notes,
           is_active: productForm.is_active,
+          is_raw_material: productForm.is_raw_material,
         });
         setProducts((prev) =>
           prev.map((p) =>
@@ -320,13 +341,14 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                   stok_min: Number(productForm.stok_min) || 0,
                   notes: productForm.notes,
                   is_active: productForm.is_active,
+                  is_raw_material: productForm.is_raw_material,
                 }
               : p
           )
         );
         setSaving(false);
         setShowProductForm(false);
-        setSuccess("Barang diperbarui.");
+        setSuccess(productForm.is_raw_material ? "Bahan baku diperbarui." : "Barang diperbarui.");
         setTimeout(() => setSuccess(null), 3000);
         return;
       }
@@ -337,12 +359,13 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
         category: productForm.category,
         unit: productForm.unit,
         harga_modal: Number(productForm.harga_modal) || 0,
-        harga_jual: Number(productForm.harga_jual) || 0,
+        harga_jual: productForm.is_raw_material ? 0 : Number(productForm.harga_jual) || 0,
         stok: Number(productForm.stok) || 0,
         stok_min: Number(productForm.stok_min) || 0,
         notes: productForm.notes,
+        is_raw_material: productForm.is_raw_material,
       });
-      showSuccess("Barang ditambahkan.");
+      showSuccess(productForm.is_raw_material ? "Bahan baku ditambahkan." : "Barang ditambahkan.");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
@@ -351,7 +374,9 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
   }
 
   async function removeProduct(id: number) {
-    if (!confirm("Nonaktifkan barang ini? Barang tidak dihapus dan tetap bisa dilihat di riwayat.")) return;
+    const target = products.find((p) => p.id === id);
+    const kind = target?.is_raw_material ? "bahan ini" : "barang ini";
+    if (!confirm(`Nonaktifkan ${kind}? Data tidak dihapus dan tetap bisa dilihat di riwayat.`)) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/products", "DELETE", { id });
@@ -511,6 +536,10 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
     }
     for (const [pid, qty] of perProduct) {
       const p = productMap.get(pid);
+      if (p?.is_raw_material) {
+        showError(`Bahan baku "${p.name}" tidak bisa dijual.`);
+        return;
+      }
       if (p && qty > p.stok) {
         showError(`Stok ${p.name} tidak cukup (sisa ${p.stok} ${p.unit}, diminta ${qty}).`);
         return;
@@ -639,16 +668,24 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Inventori Barang</h1>
           <p className="text-white/50 mt-1">
-            Ganci, asbak, coaster, dll. — stok masuk/keluar, penjualan, kas &amp; jurnal otomatis.
+            Ganci, asbak, coaster, bahan baku, dll. — stok masuk/keluar, penjualan, kas &amp; jurnal otomatis.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {tab === "barang" && isAdmin && (
-            <button onClick={() => (showProductForm ? setShowProductForm(false) : openCreateProduct())} className={primaryBtn}>
+            <button onClick={() => (showProductForm ? setShowProductForm(false) : openCreateProduct(false))} className={primaryBtn}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               {showProductForm ? "Tutup" : "Tambah Barang"}
+            </button>
+          )}
+          {tab === "bahan" && isAdmin && (
+            <button onClick={() => (showProductForm ? setShowProductForm(false) : openCreateProduct(true))} className={primaryBtn}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {showProductForm ? "Tutup" : "Tambah Bahan"}
             </button>
           )}
           {tab === "mutasi" && isAdmin && (
@@ -681,7 +718,11 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              setTab(t.key);
+              setShowProductForm(false);
+              setEditingProduct(null);
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               tab === t.key
                 ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white"
@@ -689,8 +730,11 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
             }`}
           >
             {t.label}
-            {t.key === "barang" && lowStock.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[11px]">{lowStock.length}</span>
+            {t.key === "barang" && lowStockBarang.length > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[11px]">{lowStockBarang.length}</span>
+            )}
+            {t.key === "bahan" && lowStockBahan.length > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[11px]">{lowStockBahan.length}</span>
             )}
           </button>
         ))}
@@ -706,14 +750,22 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
       )}
 
       {/* ================= TAB BARANG ================= */}
-      {tab === "barang" && (
+      {(tab === "barang" || tab === "bahan") && (
         <>
           {showProductForm && isAdmin && (
             <form onSubmit={saveProduct} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
-              <h2 className="font-semibold text-white">{editingProduct ? "Ubah Barang" : "Tambah Barang"}</h2>
+              <h2 className="font-semibold text-white">
+                {editingProduct
+                  ? productForm.is_raw_material
+                    ? "Ubah Bahan Baku"
+                    : "Ubah Barang"
+                  : tab === "bahan"
+                    ? "Tambah Bahan Baku"
+                    : "Tambah Barang"}
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
-                  <label className={labelCls}>Nama Barang *</label>
+                  <label className={labelCls}>{productForm.is_raw_material ? "Nama Bahan *" : "Nama Barang *"}</label>
                   <input
                     value={productForm.name}
                     onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
@@ -770,17 +822,19 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                     className={inputCls}
                   />
                 </div>
-                <div>
-                  <label className={labelCls}>Harga Jual (Rp)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={productForm.harga_jual}
-                    onChange={(e) => setProductForm({ ...productForm, harga_jual: e.target.value })}
-                    placeholder="mis. 25000"
-                    className={inputCls}
-                  />
-                </div>
+                {!productForm.is_raw_material && (
+                  <div>
+                    <label className={labelCls}>Harga Jual (Rp)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={productForm.harga_jual}
+                      onChange={(e) => setProductForm({ ...productForm, harga_jual: e.target.value })}
+                      placeholder="mis. 25000"
+                      className={inputCls}
+                    />
+                  </div>
+                )}
                 {!editingProduct && (
                   <div>
                     <label className={labelCls}>Stok Awal</label>
@@ -811,7 +865,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                       onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })}
                       className="accent-[#D97A2B]"
                     />
-                    Barang aktif dijual
+                    {productForm.is_raw_material ? "Bahan aktif digunakan" : "Barang aktif dijual"}
                   </label>
                 )}
               </div>
@@ -827,7 +881,13 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
                   )}
-                  {saving ? "Menyimpan..." : editingProduct ? "Simpan Perubahan" : "Tambah Barang"}
+                  {saving
+                    ? "Menyimpan..."
+                    : editingProduct
+                      ? "Simpan Perubahan"
+                      : productForm.is_raw_material
+                        ? "Tambah Bahan"
+                        : "Tambah Barang"}
                 </button>
                 <button
                   type="button"
@@ -840,118 +900,237 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
             </form>
           )}
 
-          <div className="flex flex-col md:flex-row gap-3 mb-4">
-            <SearchInput value={barangSearch} onChange={setBarangSearch} placeholder="Cari barang / SKU / kategori..." className="max-w-sm" />
-            <div className="md:ml-auto">
-              <button onClick={exportBarang} className={ghostBtn}>
-                Export Excel
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-white/50 border-b border-white/10">
-                  <th className="px-4 py-3 font-medium">SKU</th>
-                  <th className="px-4 py-3 font-medium">Barang</th>
-                  <th className="px-4 py-3 font-medium">Kategori</th>
-                  <th className="px-4 py-3 font-medium text-right">Harga Modal</th>
-                  <th className="px-4 py-3 font-medium text-right">Harga Jual</th>
-                  <th className="px-4 py-3 font-medium text-right">Stok</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((p) => (
-                  <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="px-4 py-3 font-mono text-white/60">{p.sku ?? "-"}</td>
-                    <td className="px-4 py-3 font-medium text-white">
-                      {p.name}
-                      {p.unit && <span className="text-white/30 font-normal"> / {p.unit}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-white/60">{p.category || "-"}</td>
-                    <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>
-                    <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_jual)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          p.is_active && p.stok <= p.stok_min ? "bg-red-500/10 text-red-400" : "bg-white/10 text-white/80"
-                        }`}
-                      >
-                        {formatNumber(p.stok)}
-                      </span>
-                      {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-[11px] text-red-400">menipis</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                          p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
-                        }`}
-                      >
-                        {p.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => {
-                          setTab("mutasi");
-                          openHistory(p);
-                        }}
-                        className="p-1.5 text-white/30 hover:text-blue-400 transition"
-                        aria-label="Riwayat"
-                        title="Riwayat barang"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-                      {isAdmin && (
-                        <>
-                          <button
-                            onClick={() => openEditProduct(p)}
-                            className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
-                            aria-label="Ubah"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => removeProduct(p.id)}
-                            className="p-1.5 text-white/30 hover:text-red-400 transition"
-                            aria-label="Nonaktifkan barang"
-                            title="Nonaktifkan barang"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredProducts.length === 0 && (
-              <div className="p-16 text-center text-white/40">
-                <p className="text-lg font-medium mb-1">Belum ada barang</p>
-                <p className="text-sm">Tambahkan ganci, asbak, coaster, dan merch lainnya.</p>
+          {tab === "barang" && (
+            <>
+              <div className="flex flex-col md:flex-row gap-3 mb-4">
+                <SearchInput value={barangSearch} onChange={setBarangSearch} placeholder="Cari barang / SKU / kategori..." className="max-w-sm" />
+                <div className="md:ml-auto">
+                  <button onClick={exportBarang} className={ghostBtn}>
+                    Export Excel
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+
+              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-white/50 border-b border-white/10">
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Barang</th>
+                      <th className="px-4 py-3 font-medium">Kategori</th>
+                      <th className="px-4 py-3 font-medium text-right">Harga Modal</th>
+                      <th className="px-4 py-3 font-medium text-right">Harga Jual</th>
+                      <th className="px-4 py-3 font-medium text-right">Stok</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((p) => (
+                      <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-3 font-mono text-white/60">{p.sku ?? "-"}</td>
+                        <td className="px-4 py-3 font-medium text-white">
+                          {p.name}
+                          {p.unit && <span className="text-white/30 font-normal"> / {p.unit}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-white/60">{p.category || "-"}</td>
+                        <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>
+                        <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_jual)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              p.is_active && p.stok <= p.stok_min ? "bg-red-500/10 text-red-400" : "bg-white/10 text-white/80"
+                            }`}
+                          >
+                            {formatNumber(p.stok)}
+                          </span>
+                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-[11px] text-red-400">menipis</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
+                            }`}
+                          >
+                            {p.is_active ? "Aktif" : "Nonaktif"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setTab("mutasi");
+                              openHistory(p);
+                            }}
+                            className="p-1.5 text-white/30 hover:text-blue-400 transition"
+                            aria-label="Riwayat"
+                            title="Riwayat barang"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                onClick={() => openEditProduct(p)}
+                                className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                                aria-label="Ubah"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => removeProduct(p.id)}
+                                className="p-1.5 text-white/30 hover:text-red-400 transition"
+                                aria-label="Nonaktifkan barang"
+                                title="Nonaktifkan barang"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredProducts.length === 0 && (
+                  <div className="p-16 text-center text-white/40">
+                    <p className="text-lg font-medium mb-1">Belum ada barang</p>
+                    <p className="text-sm">Tambahkan ganci, asbak, coaster, dan merch lainnya.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === "bahan" && (
+            <>
+              <div className="flex flex-col md:flex-row gap-3 mb-4">
+                <SearchInput
+                  value={bahanSearch}
+                  onChange={setBahanSearch}
+                  placeholder="Cari bahan / SKU / kategori..."
+                  className="max-w-sm"
+                />
+              </div>
+
+              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-white/50 border-b border-white/10">
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Bahan</th>
+                      <th className="px-4 py-3 font-medium">Kategori</th>
+                      <th className="px-4 py-3 font-medium text-right">Harga Modal</th>
+                      <th className="px-4 py-3 font-medium text-right">Stok</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBahan.map((p) => (
+                      <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-3 font-mono text-white/60">{p.sku ?? "-"}</td>
+                        <td className="px-4 py-3 font-medium text-white">
+                          {p.name}
+                          {p.unit && <span className="text-white/30 font-normal"> / {p.unit}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-white/60">{p.category || "-"}</td>
+                        <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              p.is_active && p.stok <= p.stok_min ? "bg-red-500/10 text-red-400" : "bg-white/10 text-white/80"
+                            }`}
+                          >
+                            {formatNumber(p.stok)}
+                          </span>
+                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-[11px] text-red-400">menipis</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
+                            }`}
+                          >
+                            {p.is_active ? "Aktif" : "Nonaktif"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setTab("mutasi");
+                              openHistory(p);
+                            }}
+                            className="p-1.5 text-white/30 hover:text-blue-400 transition"
+                            aria-label="Riwayat"
+                            title="Riwayat bahan"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                onClick={() => openEditProduct(p)}
+                                className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                                aria-label="Ubah"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => removeProduct(p.id)}
+                                className="p-1.5 text-white/30 hover:text-red-400 transition"
+                                aria-label="Nonaktifkan bahan"
+                                title="Nonaktifkan bahan"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredBahan.length === 0 && (
+                  <div className="p-16 text-center text-white/40">
+                    <p className="text-lg font-medium mb-1">Belum ada bahan baku</p>
+                    <p className="text-sm">Catat bahan seperti lem, tinta, resin, kain, dll.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1214,7 +1393,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                         <select value={it.product_id} onChange={(e) => onSaleProductChange(idx, e.target.value)} className={selectCls}>
                           <option value="">— Pilih barang —</option>
                           {products
-                            .filter((x) => x.is_active)
+                            .filter((x) => x.is_active && !x.is_raw_material)
                             .map((x) => (
                               <option key={x.id} value={x.id}>
                                 {x.name} (stok {x.stok})
@@ -1401,7 +1580,12 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
               <tbody>
                 {products.map((p) => (
                   <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="px-4 py-3 text-white font-medium">{p.name}</td>
+                    <td className="px-4 py-3 text-white font-medium">
+                      {p.name}
+                      {p.is_raw_material && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium">bahan</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-white/60">{p.unit}</td>
                     <td className="px-4 py-3 text-right text-white/80">{formatNumber(p.stok)}</td>
                     <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>

@@ -15,6 +15,7 @@ type ProductRow = {
   stok: number | string;
   stok_min: number | string;
   is_active: boolean | null;
+  is_raw_material?: boolean | null;
   notes: string | null;
   created_at: string;
 };
@@ -68,7 +69,7 @@ export default async function AdminInventoriPage() {
     supabase
       .from("inventory_items")
       .select(
-        "id, sku, name, category, unit, harga_modal, harga_jual, stok, stok_min, is_active, notes, created_at"
+        "id, sku, name, category, unit, harga_modal, harga_jual, stok, stok_min, is_active, is_raw_material, notes, created_at"
       )
       .order("name", { ascending: true }),
     supabase
@@ -99,6 +100,7 @@ export default async function AdminInventoriPage() {
     stok: Number(p.stok) || 0,
     stok_min: Number(p.stok_min) || 0,
     is_active: p.is_active ?? true,
+    is_raw_material: p.is_raw_material ?? false,
     notes: p.notes ?? "",
     created_at: p.created_at,
   }));
