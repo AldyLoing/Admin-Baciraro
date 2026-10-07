@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const productId = body.product_id;
   const type = body.type;
   const reason = body.reason;
-  const qty = Math.trunc(Number(body.qty));
+  const qty = Math.round(Number(body.qty) * 1000) / 1000;
   const recipient = String(body.recipient ?? "").trim();
   const note = String(body.note ?? "").trim();
 

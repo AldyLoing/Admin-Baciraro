@@ -124,6 +124,7 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 12. `supabase-audit-immutable.sql` — trigger audit trail immutable: baris `activity_log` tidak bisa di-update/di-delete (sekali jalan; hanya transisi `user_id → NULL` yang diizinkan)
 13. `supabase-project-installments.sql` — tabel cicilan project (bayar bertahap + pembagian per cicilan)
 14. `supabase-inventori-bahan-baku.sql` — kolom `is_raw_material` di `inventory_items` (fitur Bahan Baku)
+15. `supabase-inventori-desimal.sql` — stok & qty `INT → NUMERIC(14,3)` (bahan berat dalam kg/desimal)
 
 ### Buat Akun Anggota (sekali jalan)
 

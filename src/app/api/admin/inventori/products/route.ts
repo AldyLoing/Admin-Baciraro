@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   const unit = String(body.unit ?? "").trim() || "pcs";
   const hargaModal = Number(body.harga_modal) || 0;
   const hargaJual = Number(body.harga_jual) || 0;
-  const stokAwal = Math.trunc(Number(body.stok) || 0);
-  const stokMin = Math.trunc(Number(body.stok_min) || 0);
+  const stokAwal = Math.round((Number(body.stok) || 0) * 1000) / 1000;
+  const stokMin = Math.round((Number(body.stok_min) || 0) * 1000) / 1000;
   const notes = String(body.notes ?? "").trim();
   const isRawMaterial = !!body.is_raw_material;
 
@@ -147,7 +147,7 @@ export async function PATCH(req: NextRequest) {
     patch.harga_jual = v;
   }
   if (body.stok_min !== undefined) {
-    const v = Math.trunc(Number(body.stok_min));
+    const v = Math.round(Number(body.stok_min) * 1000) / 1000;
     if (isNaN(v) || v < 0) return NextResponse.json({ error: "Stok minimum tidak valid." }, { status: 400 });
     patch.stok_min = v;
   }

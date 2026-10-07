@@ -805,6 +805,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                   <input
                     type="number"
                     min={0}
+                    step="any"
                     value={productForm.stok_min}
                     onChange={(e) => setProductForm({ ...productForm, stok_min: e.target.value })}
                     placeholder="mis. 5"
@@ -841,6 +842,7 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                     <input
                       type="number"
                       min={0}
+                      step="any"
                       value={productForm.stok}
                       onChange={(e) => setProductForm({ ...productForm, stok: e.target.value })}
                       placeholder="mis. 50"
@@ -1195,10 +1197,11 @@ export default function InventoriClient({ initialProducts, initialMovements, ini
                   <label className={labelCls}>Jumlah *</label>
                   <input
                     type="number"
-                    min={1}
+                    min={0.001}
+                    step="any"
                     value={movementForm.qty}
                     onChange={(e) => setMovementForm({ ...movementForm, qty: e.target.value })}
-                    placeholder="mis. 10"
+                    placeholder="mis. 10 atau 0.5"
                     className={inputCls}
                   />
                 </div>
