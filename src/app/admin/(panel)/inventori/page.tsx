@@ -31,10 +31,55 @@ type MovementRow = {
   reference: string | null;
   harga_modal: number | string;
   sale_id: number | null;
+  consignment_id?: number | null;
   journal_entry_id: number | null;
   created_at: string;
   products: { name: string; sku: string | null; unit: string | null } | null;
   team_members: { name: string } | null;
+};
+
+type TokoRow = {
+  id: number;
+  name: string;
+  contact_name: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  notes: string | null;
+  is_active: boolean | null;
+  created_at: string;
+};
+
+type ConsignmentEventRow = {
+  id: number;
+  type: string;
+  qty: number | string;
+  date: string;
+  note: string | null;
+  created_at: string;
+};
+
+type ConsignmentItemRow = {
+  id: number;
+  product_id: number;
+  qty: number | string;
+  harga_jual: number | string;
+  harga_modal: number | string;
+  products: { name: string; sku: string | null; unit: string | null } | null;
+  consignment_events: ConsignmentEventRow[] | null;
+};
+
+type ConsignmentRow = {
+  id: number;
+  reference: string;
+  toko_id: number;
+  date: string;
+  note: string | null;
+  status: string | null;
+  void_reason: string | null;
+  created_at: string;
+  toko: { id: number; name: string; phone: string | null; city: string | null } | null;
+  consignment_items: ConsignmentItemRow[] | null;
 };
 
 type SaleItemRow = {
@@ -65,7 +110,7 @@ export default async function AdminInventoriPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const [productsRes, movementsRes, salesRes] = await Promise.all([
+  const [productsRes, movementsRes, salesRes, tokosRes, consignmentsRes] = await Promise.all([
     supabase
       .from("inventory_items")
       .select(
@@ -75,7 +120,7 @@ export default async function AdminInventoriPage() {
     supabase
       .from("stock_movements")
       .select(
-        "id, product_id, type, reason, qty, recipient, note, reference, harga_modal, sale_id, journal_entry_id, created_at, created_by, products:product_id ( name, sku, unit ), team_members:created_by ( name )"
+        "id, product_id, type, reason, qty, recipient, note, reference, harga_modal, sale_id, consignment_id, journal_entry_id, created_at, created_by, products:product_id ( name, sku, unit ), team_members:created_by ( name )"
       )
       .order("created_at", { ascending: false })
       .limit(300),
@@ -83,6 +128,18 @@ export default async function AdminInventoriPage() {
       .from("sales")
       .select(
         "id, date, reference, recipient, total, payment_note, transaction_id, status, created_at, transactions:transaction_id ( reference ), sale_items ( id, product_id, qty, harga_jual, subtotal, products:product_id ( name ) )"
+      )
+      .order("date", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(200),
+    supabase
+      .from("tokos")
+      .select("id, name, contact_name, phone, address, city, notes, is_active, created_at")
+      .order("name", { ascending: true }),
+    supabase
+      .from("consignments")
+      .select(
+        "id, reference, toko_id, date, note, status, void_reason, created_at, toko:toko_id ( id, name, phone, city ), consignment_items ( id, product_id, qty, harga_jual, harga_modal, products:product_id ( name, sku, unit ), consignment_events ( id, type, qty, date, note, created_at ) )"
       )
       .order("date", { ascending: false })
       .order("id", { ascending: false })
@@ -116,6 +173,7 @@ export default async function AdminInventoriPage() {
     reference: m.reference ?? "",
     harga_modal: Number(m.harga_modal) || 0,
     sale_id: m.sale_id ?? null,
+    consignment_id: m.consignment_id ?? null,
     journal_entry_id: m.journal_entry_id ?? null,
     created_at: m.created_at,
     product_name: m.products?.name ?? "-",
@@ -143,11 +201,57 @@ export default async function AdminInventoriPage() {
     })),
   }));
 
+  const tokos = ((tokosRes.data ?? []) as unknown as TokoRow[]).map((t) => ({
+    id: t.id,
+    name: t.name,
+    contact_name: t.contact_name ?? "",
+    phone: t.phone ?? "",
+    address: t.address ?? "",
+    city: t.city ?? "",
+    notes: t.notes ?? "",
+    is_active: t.is_active ?? true,
+    created_at: t.created_at,
+  }));
+
+  const consignments = ((consignmentsRes.data ?? []) as unknown as ConsignmentRow[]).map((c) => ({
+    id: c.id,
+    reference: c.reference,
+    toko_id: c.toko_id,
+    toko_name: c.toko?.name ?? "-",
+    toko_phone: c.toko?.phone ?? "",
+    toko_city: c.toko?.city ?? "",
+    date: c.date,
+    note: c.note ?? "",
+    status: c.status ?? "active",
+    void_reason: c.void_reason ?? "",
+    created_at: c.created_at,
+    items: (c.consignment_items ?? []).map((i) => ({
+      id: i.id,
+      product_id: i.product_id,
+      product_name: i.products?.name ?? "-",
+      product_sku: i.products?.sku ?? null,
+      product_unit: i.products?.unit ?? "pcs",
+      qty: Number(i.qty) || 0,
+      harga_jual: Number(i.harga_jual) || 0,
+      harga_modal: Number(i.harga_modal) || 0,
+      events: (i.consignment_events ?? []).map((e) => ({
+        id: e.id,
+        type: e.type as "terjual" | "retur" | "susut",
+        qty: Number(e.qty) || 0,
+        date: e.date,
+        note: e.note ?? "",
+        created_at: e.created_at,
+      })),
+    })),
+  }));
+
   return (
     <InventoriClient
       initialProducts={products}
       initialMovements={movements}
       initialSales={sales}
+      initialTokos={tokos}
+      initialConsignments={consignments}
       isAdmin={admin?.is_admin ?? false}
     />
   );

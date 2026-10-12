@@ -7,7 +7,7 @@ import { voidJournalEntry } from "@/lib/admin/void";
 
 const MOVEMENT_SELECT = `
   id, product_id, type, reason, qty, recipient, note, reference, harga_modal,
-  sale_id, transaction_id, journal_entry_id, created_by, created_at,
+  sale_id, consignment_id, transaction_id, journal_entry_id, created_by, created_at,
   products:product_id ( id, name, sku, unit, stok )
 `;
 
@@ -163,7 +163,7 @@ export async function DELETE(req: NextRequest) {
 
   const { data: movement, error } = await supabase
     .from("stock_movements")
-    .select("id, product_id, type, reason, qty, harga_modal, sale_id, journal_entry_id, reference, products:product_id ( name, unit, stok )")
+    .select("id, product_id, type, reason, qty, harga_modal, sale_id, consignment_id, journal_entry_id, reference, products:product_id ( name, unit, stok )")
     .eq("id", id)
     .single();
 
@@ -171,6 +171,12 @@ export async function DELETE(req: NextRequest) {
   if (movement.sale_id) {
     return NextResponse.json(
       { error: "Mutasi ini bagian dari penjualan. Batalkan lewat daftar penjualan agar stok & kas ikut terbalik." },
+      { status: 400 }
+    );
+  }
+  if (movement.consignment_id) {
+    return NextResponse.json(
+      { error: "Mutasi ini bagian dari nota titipan. Batalkan lewat daftar titipan agar sisa titip ikut terbalik." },
       { status: 400 }
     );
   }

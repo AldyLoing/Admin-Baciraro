@@ -125,6 +125,8 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 13. `supabase-project-installments.sql` — tabel cicilan project (bayar bertahap + pembagian per cicilan)
 14. `supabase-inventori-bahan-baku.sql` — kolom `is_raw_material` di `inventory_items` (fitur Bahan Baku)
 15. `supabase-inventori-desimal.sql` — stok & qty `INT → NUMERIC(14,3)` (bahan berat dalam kg/desimal)
+16. `supabase-no-hard-delete.sql` — "hapus" jadi non-destruktif (void / nonaktif / arsip); idempoten
+17. `supabase-titipan.sql` — fitur Titipan: tabel `tokos`, `consignments`, `consignment_items`, `consignment_events`, kolom `stock_movements.consignment_id`, extend CHECK reason (`titip`, `retur_titip`)
 
 ### Buat Akun Anggota (sekali jalan)
 

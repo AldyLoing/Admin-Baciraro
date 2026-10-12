@@ -118,6 +118,21 @@ export async function generateSaleReference(supabase: Supabase, year: number): P
   return prefix + String(max + 1).padStart(3, "0");
 }
 
+/** Nomor nota titip: TP-YYYY-NNN. */
+export async function generateTitipanReference(supabase: Supabase, year: number): Promise<string> {
+  const prefix = `TP-${year}-`;
+  const { data } = await supabase
+    .from("consignments")
+    .select("reference")
+    .like("reference", `${prefix}%`);
+  let max = 0;
+  for (const c of data ?? []) {
+    const n = parseInt(String(c.reference ?? "").slice(prefix.length), 10);
+    if (!isNaN(n) && n > max) max = n;
+  }
+  return prefix + String(max + 1).padStart(3, "0");
+}
+
 export { generateReference };
 
 /**
