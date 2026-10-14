@@ -89,6 +89,17 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
+          <a
+            href="/download/baciraro-admin.apk"
+            download
+            className="mt-5 flex items-center justify-center gap-1.5 text-sm text-white/50 hover:text-[#E9A64E] transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Unduh Aplikasi untuk Android
+          </a>
+
           <div className="mt-6 pt-6 border-t border-white/10">
             <a href="/" className="text-sm text-white/50 hover:text-[#E9A64E] transition flex items-center justify-center gap-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

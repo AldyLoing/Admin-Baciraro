@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "id.baciraro.admin",
+        "sha256_cert_fingerprints": ["E9:11:1D:38:89:99:6D:74:C8:DB:4A:14:5D:8F:B9:97:3B:E9:B3:7C:95:AA:8D:33:E1:24:63:C4:57:D2:22:8D"]
+      }
+    }]
