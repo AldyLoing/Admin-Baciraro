@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import LogoutButton from "./LogoutButton";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 type NavItem = {
   href: string;
@@ -243,6 +244,7 @@ export default function Sidebar({ name, role, isAdmin, avatarUrl }: SidebarProps
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     Finance: accountingItems.some((a) => pathname.startsWith(a.href)),
   });
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -432,8 +434,20 @@ export default function Sidebar({ name, role, isAdmin, avatarUrl }: SidebarProps
               </p>
             </div>
           </div>
+          <button
+            onClick={() => setShowChangePassword(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 transition mb-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Ganti Password
+          </button>
           <LogoutButton />
         </div>
+        {showChangePassword && (
+          <ChangePasswordModal open={showChangePassword} onClose={() => setShowChangePassword(false)} />
+        )}
       </aside>
     </>
   );
