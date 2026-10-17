@@ -8,6 +8,8 @@ type Payout = {
   id: string;
   project_id: string | null;
   project_name: string;
+  sale_id: string | null;
+  source_type: string;
   date: string;
   total_amount: number;
   orders_fee: number;
@@ -293,13 +295,14 @@ export default function PayoutsClient({
   }
 
   function exportCsv() {
-    const header = ["Tanggal", "Project", "Total (Rp)", "Fee Baciraro (Rp)", "Net (Rp)", "Status", "Rincian Member"];
+    const header = ["Tanggal", "Sumber", "Nama", "Total (Rp)", "Fee Baciraro (Rp)", "Net (Rp)", "Status", "Rincian Member"];
     const lines = filtered.map((p) => {
       const ms = (membersByPayout.get(p.id) ?? [])
         .map((m) => `${m.name} (${m.contribution_percent}%${m.tugas ? ` - ${m.tugas}` : ""}) ${formatRupiah(m.amount)}`)
         .join("; ");
       return [
         p.date,
+        p.source_type === "penjualan" ? "Penjualan" : "Project",
         `"${p.project_name.replace(/"/g, '""')}"`,
         p.total_amount,
         p.orders_fee,
@@ -328,7 +331,7 @@ export default function PayoutsClient({
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Payouts</h1>
           <p className="text-white/50 mt-1">
-            Pencairan dana project ke anggota ({KAS_PERCENT}% fee Baciraro otomatis).
+            Pencairan dana project &amp; penjualan ke anggota ({KAS_PERCENT}% fee Baciraro otomatis).
           </p>
         </div>
         <div className="flex gap-2 print:hidden">
@@ -544,7 +547,7 @@ export default function PayoutsClient({
       {filtered.length === 0 ? (
         <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40 print:hidden">
           <p className="text-lg font-medium mb-1">Belum ada payout</p>
-          <p className="text-sm">Buat payout dari project yang selesai atau dibayar.</p>
+          <p className="text-sm">Buat payout dari project, atau bagi hasil penjualan dari tab Inventori → Penjualan.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -560,7 +563,16 @@ export default function PayoutsClient({
                     </svg>
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-white truncate">{p.project_name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-white truncate">{p.project_name}</p>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${
+                          p.source_type === "penjualan" ? "bg-sky-500/10 text-sky-400" : "bg-purple-500/10 text-purple-400"
+                        }`}
+                      >
+                        {p.source_type === "penjualan" ? "Penjualan" : "Project"}
+                      </span>
+                    </div>
                     <p className="text-xs text-white/50">{formatDate(p.date)} · {ms.length} member</p>
                   </div>
                   <div className="hidden md:block text-right">

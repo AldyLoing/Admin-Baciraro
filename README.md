@@ -28,6 +28,7 @@ Panel manajemen internal untuk organisasi Baciraro — dibangun dengan **Next.js
 
 ### Payout / Bagi Hasil
 - Perhitungan otomatis: Kas Baciraro (10%) + distribusi ke anggota berdasarkan kontribusi
+- **Bagi hasil per penjualan** — tiap penjualan (SL-) bisa dibagi hasilkan: pilih anggota mana saja + persen, fee 10% dipotong otomatis dari omzet; muncul bersama payout project di halaman Payouts
 - Finalisasi dengan nominal riil
 - Status: Menunggu → Diproses → Dibayar
 - Invoice cetak per payout + link ke jurnal terkait
@@ -127,6 +128,7 @@ Jalankan SQL migration di **Supabase SQL Editor** secara berurutan:
 15. `supabase-inventori-desimal.sql` — stok & qty `INT → NUMERIC(14,3)` (bahan berat dalam kg/desimal)
 16. `supabase-no-hard-delete.sql` — "hapus" jadi non-destruktif (void / nonaktif / arsip); idempoten
 17. `supabase-titipan.sql` — fitur Titipan: tabel `tokos`, `consignments`, `consignment_items`, `consignment_events`, kolom `stock_movements.consignment_id`, extend CHECK reason (`titip`, `retur_titip`)
+18. `supabase-payout-penjualan.sql` — bagi hasil per penjualan: kolom `payouts.sale_id`, `payouts.source_type` (`project`/`penjualan`), unique index satu payout aktif per penjualan
 
 ### Buat Akun Anggota (sekali jalan)
 

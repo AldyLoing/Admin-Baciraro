@@ -326,6 +326,22 @@ export async function DELETE(req: NextRequest) {
   if (error || !sale) return NextResponse.json({ error: "Penjualan tidak ditemukan." }, { status: 404 });
   if (sale.status === "void") return NextResponse.json({ error: "Penjualan sudah dibatalkan." }, { status: 400 });
 
+  // 0. Tolak void bila masih ada payout aktif dari penjualan ini
+  const { data: activePayouts } = await supabase
+    .from("payouts")
+    .select("id, status")
+    .eq("sale_id", id)
+    .neq("status", "cancelled")
+    .limit(1);
+  if (activePayouts && activePayouts.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Penjualan sudah dibagi hasilkan (payout #${activePayouts[0].id}, status ${activePayouts[0].status}). Batalkan payout dulu di halaman Payouts.`,
+      },
+      { status: 400 }
+    );
+  }
+
   // 1. Kembalikan stok + catat mutasi koreksi (mutasi asli TIDAK dihapus)
   const { data: items } = await supabase
     .from("sale_items")

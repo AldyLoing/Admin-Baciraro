@@ -12,6 +12,7 @@ type PayoutMember = {
 type Payout = {
   id: string;
   project_name: string;
+  source_type?: string;
   date: string;
   total_amount: number;
   orders_fee: number;
@@ -56,7 +57,7 @@ export default function InvoicePrint({ payout }: { payout: Payout }) {
       </div>
 
       <div className="mb-6">
-        <h2 className="font-semibold text-lg mb-2">Project</h2>
+        <h2 className="font-semibold text-lg mb-2">{payout.source_type === "penjualan" ? "Penjualan" : "Project"}</h2>
         <p className="text-gray-700">{payout.project_name}</p>
       </div>
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import SearchInput from "@/components/ui/SearchInput";
-import { formatRupiah, formatDateTime, formatNumber } from "@/lib/admin/format";
+import { formatRupiah, formatDateTime, formatNumber, calculateDistribution, KAS_PERCENT } from "@/lib/admin/format";
 
 export type Product = {
   id: number;
@@ -49,6 +49,12 @@ export type SaleItem = {
   subtotal: number;
 };
 
+export type SalePayout = {
+  id: number;
+  status: string;
+  net_amount: number;
+};
+
 export type Sale = {
   id: number;
   date: string;
@@ -59,7 +65,14 @@ export type Sale = {
   status?: string;
   transaction_ref: string | null;
   created_at: string;
+  payout: SalePayout | null;
   items: SaleItem[];
+};
+
+export type TeamMemberOption = {
+  id: number;
+  name: string;
+  role: string;
 };
 
 export type Toko = {
@@ -116,6 +129,7 @@ type Props = {
   initialSales: Sale[];
   initialTokos: Toko[];
   initialConsignments: Consignment[];
+  teamMembers: TeamMemberOption[];
   isAdmin: boolean;
 };
 
@@ -162,6 +176,19 @@ const eventTypeColor: Record<ConsignmentEvent["type"], string> = {
   terjual: "bg-emerald-500/10 text-emerald-400",
   retur: "bg-teal-500/10 text-teal-400",
   susut: "bg-red-500/10 text-red-400",
+};
+
+const payoutStatusLabel: Record<string, string> = {
+  pending: "Menunggu",
+  processing: "Diproses",
+  paid: "Dibayar",
+  cancelled: "Dibatalkan",
+};
+const payoutStatusColor: Record<string, string> = {
+  pending: "bg-amber-500/10 text-amber-400",
+  processing: "bg-blue-500/10 text-blue-400",
+  paid: "bg-emerald-500/10 text-emerald-400",
+  cancelled: "bg-red-500/10 text-red-400",
 };
 
 /** Σ qty per jenis pelaporan + sisa yang masih dititipkan pada satu barang. */
@@ -229,6 +256,7 @@ const emptyTitipForm = {
 
 type SaleFormItem = { product_id: string; qty: string; harga_jual: string };
 type TitipFormItem = SaleFormItem;
+type ShareFormItem = { key: string; member_id: number | null; member_name: string; contribution_percent: number; tugas: string };
 
 type ApiResult = {
   ok?: boolean;
@@ -248,12 +276,13 @@ export default function InventoriClient({
   initialSales,
   initialTokos,
   initialConsignments,
+  teamMembers,
   isAdmin,
 }: Props) {
   const [tab, setTab] = useState<Tab>("barang");
   const [products, setProducts] = useState(initialProducts);
   const [movements] = useState(initialMovements);
-  const [sales] = useState(initialSales);
+  const [sales, setSales] = useState(initialSales);
   const [tokos, setTokos] = useState(initialTokos);
   const [consignments] = useState(initialConsignments);
 
@@ -280,6 +309,12 @@ export default function InventoriClient({
   const [saleRecipient, setSaleRecipient] = useState("");
   const [salePaymentNote, setSalePaymentNote] = useState("");
   const [saleItems, setSaleItems] = useState<SaleFormItem[]>([{ product_id: "", qty: "", harga_jual: "" }]);
+
+  const [shareSale, setShareSale] = useState<Sale | null>(null);
+  const [shareDate, setShareDate] = useState(new Date().toISOString().slice(0, 10));
+  const [shareMembers, setShareMembers] = useState<ShareFormItem[]>([]);
+  const [shareNewMemberId, setShareNewMemberId] = useState("");
+  const [sharing, setSharing] = useState(false);
 
   const [titipSub, setTitipSub] = useState<"daftar" | "toko">("daftar");
   const [titipanSearch, setTitipanSearch] = useState("");
@@ -1049,6 +1084,107 @@ export default function InventoriClient({
       showError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ---------- Bagi Hasil Penjualan ----------
+  const shareTotalPercent = shareMembers.reduce((s, fm) => s + fm.contribution_percent, 0);
+  const sharePreview = shareSale
+    ? calculateDistribution(shareSale.total, shareMembers.map((fm) => ({ percent: fm.contribution_percent })))
+    : null;
+
+  function openShareForm(sale: Sale) {
+    setShareSale(sale);
+    setShareDate(sale.date);
+    setShareMembers([]);
+    setShareNewMemberId("");
+    setError(null);
+    setSuccess(null);
+  }
+
+  function closeShareForm() {
+    setShareSale(null);
+    setShareMembers([]);
+    setShareNewMemberId("");
+  }
+
+  function addShareMember() {
+    if (!shareNewMemberId) {
+      showError("Pilih anggota terlebih dahulu.");
+      return;
+    }
+    const member = teamMembers.find((m) => m.id === Number(shareNewMemberId));
+    if (!member) return;
+    const nextCount = shareMembers.length + 1;
+    const share = Number((100 / nextCount).toFixed(2));
+    setShareMembers((prev) => [
+      ...prev.map((fm) => ({ ...fm, contribution_percent: Number((100 / nextCount).toFixed(2)) })),
+      { key: `sm-${Date.now()}`, member_id: member.id, member_name: member.name, contribution_percent: share, tugas: "" },
+    ]);
+    setShareNewMemberId("");
+    setError(null);
+  }
+
+  function updateShareMemberPercent(key: string, percent: number) {
+    setShareMembers((prev) => prev.map((fm) => (fm.key === key ? { ...fm, contribution_percent: percent } : fm)));
+  }
+
+  function updateShareMemberTugas(key: string, tugas: string) {
+    setShareMembers((prev) => prev.map((fm) => (fm.key === key ? { ...fm, tugas } : fm)));
+  }
+
+  function removeShareMember(key: string) {
+    setShareMembers((prev) => prev.filter((fm) => fm.key !== key));
+  }
+
+  async function saveShare() {
+    if (!shareSale) return;
+    setError(null);
+    if (!shareDate) {
+      showError("Tanggal wajib diisi.");
+      return;
+    }
+    if (shareMembers.length === 0) {
+      showError("Tambahkan minimal satu anggota penerima.");
+      return;
+    }
+    if (Math.round(shareTotalPercent) !== 100) {
+      showError(`Total kontribusi harus 100% (sekarang ${shareTotalPercent.toFixed(2)}%).`);
+      return;
+    }
+    setSharing(true);
+    try {
+      const data = await apiCall("/api/admin/payouts/from-sale", "POST", {
+        sale_id: shareSale.id,
+        date: shareDate,
+        members: shareMembers.map((fm) => ({
+          member_id: fm.member_id,
+          name: fm.member_name,
+          contribution_percent: fm.contribution_percent,
+          tugas: fm.tugas.trim() || undefined,
+        })),
+      });
+      const saleId = shareSale.id;
+      setSales((prev) =>
+        prev.map((s) =>
+          s.id === saleId
+            ? {
+                ...s,
+                payout: {
+                  id: Number(data.payout_id) || 0,
+                  status: "pending",
+                  net_amount: sharePreview?.distributable ?? 0,
+                },
+              }
+            : s
+        )
+      );
+      showSuccess(typeof data.message === "string" ? data.message : "Bagi hasil penjualan dibuat.");
+      closeShareForm();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -2041,6 +2177,166 @@ export default function InventoriClient({
             </form>
           )}
 
+          {shareSale && isAdmin && (
+            <div className="bg-[#151515] rounded-xl border border-[#D97A2B]/30 p-6 mb-6 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-white">Bagi Hasil Penjualan</h2>
+                  <p className="text-sm text-white/50 mt-0.5">
+                    <span className="font-mono text-[#E9A64E]">{shareSale.reference}</span>
+                    {" · "}omzet {formatRupiah(shareSale.total)}
+                    {shareSale.recipient ? ` · ke ${shareSale.recipient}` : ""}
+                  </p>
+                </div>
+                <button type="button" onClick={closeShareForm} className="p-1.5 text-white/30 hover:text-white transition" aria-label="Tutup">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Tanggal Payout *</label>
+                  <input type="date" value={shareDate} onChange={(e) => setShareDate(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-white/70">Anggota Penerima</label>
+                </div>
+
+                {shareMembers.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {shareMembers.map((fm) => (
+                      <div key={fm.key} className="flex flex-col gap-2 bg-white/5 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-white">{fm.member_name}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={fm.contribution_percent}
+                              onChange={(e) => updateShareMemberPercent(fm.key, Number(e.target.value))}
+                              className="w-24 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-right focus:border-[#D97A2B] outline-none transition"
+                            />
+                            <span className="text-white/50 text-sm">%</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeShareMember(fm.key)}
+                            className="p-1.5 text-white/30 hover:text-red-400 transition"
+                            aria-label="Hapus"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={fm.tugas}
+                          onChange={(e) => updateShareMemberTugas(fm.key, e.target.value)}
+                          placeholder="Tugas / peran (opsional)..."
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition"
+                        />
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium bg-[#D97A2B]/10 text-[#E9A64E]">
+                      <span>Total kontribusi</span>
+                      <span>
+                        {shareTotalPercent.toFixed(2)}% {Math.round(shareTotalPercent) === 100 ? "✓" : "(harus 100%)"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <select value={shareNewMemberId} onChange={(e) => setShareNewMemberId(e.target.value)} className={selectCls + " flex-1"}>
+                    <option value="">Tambah anggota...</option>
+                    {teamMembers
+                      .filter((m) => !shareMembers.some((fm) => fm.member_id === m.id))
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                          {m.role ? ` · ${m.role}` : ""}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addShareMember}
+                    className="px-4 py-2.5 rounded-lg border border-[#D97A2B]/40 text-[#E9A64E] text-sm font-medium hover:bg-[#D97A2B]/10 transition"
+                  >
+                    Tambah
+                  </button>
+                </div>
+              </div>
+
+              {sharePreview && shareMembers.length > 0 && (
+                <div className="bg-white/5 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-white mb-2">Ringkasan</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-white/50">Total Penjualan</p>
+                      <p className="font-semibold text-white">{formatRupiah(sharePreview.total)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-white/50">Fee Baciraro ({KAS_PERCENT}%)</p>
+                      <p className="font-semibold text-[#E9A64E]">{formatRupiah(sharePreview.kasAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-white/50">Net untuk Member</p>
+                      <p className="font-semibold text-emerald-400">{formatRupiah(sharePreview.distributable)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    {sharePreview.memberShares.map((ms, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-white/60">
+                          {shareMembers[i]?.member_name} ({ms.percent}%)
+                        </span>
+                        <span className="font-semibold text-emerald-400">{formatRupiah(ms.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-white/30 mt-2">
+                    * Payout langsung terhitung (fee {KAS_PERCENT}% dipotong otomatis dari omzet) dan muncul di halaman Payouts.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={saveShare}
+                  disabled={sharing}
+                  className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  {sharing && (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  )}
+                  {sharing ? "Menyimpan..." : "Simpan Bagi Hasil"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeShareForm}
+                  className="px-5 py-2.5 rounded-lg border border-white/10 text-white/60 font-medium hover:bg-white/5 transition"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row gap-3 mb-4">
             <SearchInput value={penjualanSearch} onChange={setPenjualanSearch} placeholder="Cari no. penjualan / penerima / barang..." className="max-w-sm" />
             <div className="md:ml-auto">
@@ -2067,6 +2363,15 @@ export default function InventoriClient({
                         </span>
                       )}
                       {s.payment_note && <span className="text-white/40 text-xs">· {s.payment_note}</span>}
+                      {s.payout && (
+                        <a
+                          href="/admin/payouts"
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${payoutStatusColor[s.payout.status] ?? "bg-white/5 text-white/50"}`}
+                          title="Lihat di halaman Payouts"
+                        >
+                          Bagi hasil · {payoutStatusLabel[s.payout.status] ?? s.payout.status} · {formatRupiah(s.payout.net_amount)}
+                        </a>
+                      )}
                     </div>
                     <div className="text-white mt-1 font-medium">
                       Diberikan ke: <span className="text-white/70 font-normal">{s.recipient || "-"}</span>
@@ -2077,11 +2382,20 @@ export default function InventoriClient({
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-white">{formatRupiah(s.total)}</div>
-                    {isAdmin && (
+                    {isAdmin && s.status !== "void" && !s.payout && (
+                      <button
+                        onClick={() => openShareForm(s)}
+                        disabled={sharing}
+                        className="mt-1 text-xs text-[#E9A64E] hover:underline disabled:opacity-40"
+                      >
+                        Bagi Hasil
+                      </button>
+                    )}
+                    {isAdmin && !s.payout && (
                       <button
                         onClick={() => removeSale(s.id)}
                         disabled={saving}
-                        className="mt-1 text-xs text-white/30 hover:text-red-400 transition disabled:opacity-40"
+                        className="mt-1 block ml-auto text-xs text-white/30 hover:text-red-400 transition disabled:opacity-40"
                       >
                         Hapus &amp; balikkan
                       </button>

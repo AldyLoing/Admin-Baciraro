@@ -103,6 +103,14 @@ type SaleRow = {
   created_at: string;
   transactions: { reference: string } | null;
   sale_items: SaleItemRow[] | null;
+  payouts: { id: number; status: string; net_amount: number | string }[] | null;
+};
+
+type TeamMemberRow = {
+  id: number;
+  name: string;
+  role: string | null;
+  status: string | null;
 };
 
 
@@ -110,7 +118,7 @@ export default async function AdminInventoriPage() {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
 
-  const [productsRes, movementsRes, salesRes, tokosRes, consignmentsRes] = await Promise.all([
+  const [productsRes, movementsRes, salesRes, tokosRes, consignmentsRes, membersRes] = await Promise.all([
     supabase
       .from("inventory_items")
       .select(
@@ -127,7 +135,7 @@ export default async function AdminInventoriPage() {
     supabase
       .from("sales")
       .select(
-        "id, date, reference, recipient, total, payment_note, transaction_id, status, created_at, transactions:transaction_id ( reference ), sale_items ( id, product_id, qty, harga_jual, subtotal, products:product_id ( name ) )"
+        "id, date, reference, recipient, total, payment_note, transaction_id, status, created_at, transactions:transaction_id ( reference ), sale_items ( id, product_id, qty, harga_jual, subtotal, products:product_id ( name ) ), payouts:sale_id ( id, status, net_amount )"
       )
       .order("date", { ascending: false })
       .order("id", { ascending: false })
@@ -144,6 +152,11 @@ export default async function AdminInventoriPage() {
       .order("date", { ascending: false })
       .order("id", { ascending: false })
       .limit(200),
+    supabase
+      .from("team_members")
+      .select("id, name, role, status")
+      .eq("status", "active")
+      .order("name"),
   ]);
 
   const products = ((productsRes.data ?? []) as unknown as ProductRow[]).map((p) => ({
@@ -182,23 +195,35 @@ export default async function AdminInventoriPage() {
     created_by_name: m.team_members?.name ?? null,
   }));
 
-  const sales = ((salesRes.data ?? []) as unknown as SaleRow[]).map((s) => ({
-    id: s.id,
-    date: s.date,
-    reference: s.reference ?? "",
-    recipient: s.recipient ?? "",
-    total: Number(s.total) || 0,
-    status: s.status ?? "active",
-    payment_note: s.payment_note ?? "",
-    transaction_ref: s.transactions?.reference ?? null,
-    created_at: s.created_at,
-    items: (s.sale_items ?? []).map((i) => ({
-      product_id: i.product_id,
-      product_name: i.products?.name ?? "-",
-      qty: Number(i.qty) || 0,
-      harga_jual: Number(i.harga_jual) || 0,
-      subtotal: Number(i.subtotal) || 0,
-    })),
+  const sales = ((salesRes.data ?? []) as unknown as SaleRow[]).map((s) => {
+    const activePayout = (s.payouts ?? []).find((p) => p.status !== "cancelled") ?? null;
+    return {
+      id: s.id,
+      date: s.date,
+      reference: s.reference ?? "",
+      recipient: s.recipient ?? "",
+      total: Number(s.total) || 0,
+      status: s.status ?? "active",
+      payment_note: s.payment_note ?? "",
+      transaction_ref: s.transactions?.reference ?? null,
+      created_at: s.created_at,
+      payout: activePayout
+        ? { id: activePayout.id, status: activePayout.status, net_amount: Number(activePayout.net_amount) || 0 }
+        : null,
+      items: (s.sale_items ?? []).map((i) => ({
+        product_id: i.product_id,
+        product_name: i.products?.name ?? "-",
+        qty: Number(i.qty) || 0,
+        harga_jual: Number(i.harga_jual) || 0,
+        subtotal: Number(i.subtotal) || 0,
+      })),
+    };
+  });
+
+  const teamMembers = ((membersRes.data ?? []) as unknown as TeamMemberRow[]).map((m) => ({
+    id: m.id,
+    name: m.name,
+    role: m.role ?? "",
   }));
 
   const tokos = ((tokosRes.data ?? []) as unknown as TokoRow[]).map((t) => ({
@@ -252,6 +277,7 @@ export default async function AdminInventoriPage() {
       initialSales={sales}
       initialTokos={tokos}
       initialConsignments={consignments}
+      teamMembers={teamMembers}
       isAdmin={admin?.is_admin ?? false}
     />
   );

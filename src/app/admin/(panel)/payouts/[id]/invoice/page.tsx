@@ -15,7 +15,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const [{ data: payout }, { data: members }] = await Promise.all([
     supabase
       .from("payouts")
-      .select("id, project_id, project_name, date, total_amount, orders_fee, kas_optional_amount, kas_optional_percent, net_amount, status, finalized_at, created_at")
+      .select("id, project_id, project_name, source_type, date, total_amount, orders_fee, kas_optional_amount, kas_optional_percent, net_amount, status, finalized_at, created_at")
       .eq("id", id)
       .single(),
     supabase

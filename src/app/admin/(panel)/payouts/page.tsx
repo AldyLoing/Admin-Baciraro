@@ -22,7 +22,7 @@ export default async function AdminPayoutsPage({
   ] = await Promise.all([
     supabase
       .from("payouts")
-      .select("id, project_id, project_name, date, total_amount, orders_fee, net_amount, status, finalized_at, created_at")
+      .select("id, project_id, project_name, sale_id, source_type, date, total_amount, orders_fee, net_amount, status, finalized_at, created_at")
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase
@@ -49,6 +49,8 @@ export default async function AdminPayoutsPage({
         id: p.id,
         project_id: p.project_id,
         project_name: p.project_name,
+        sale_id: p.sale_id ?? null,
+        source_type: p.source_type ?? "project",
         date: p.date,
         total_amount: Number(p.total_amount),
         orders_fee: Number(p.orders_fee),
