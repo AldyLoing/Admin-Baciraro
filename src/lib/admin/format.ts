@@ -9,10 +9,13 @@ export function formatRupiah(value: number | string | null | undefined): string 
 
 export function formatDate(date: string | Date | null | undefined): string {
     if (!date) return '-';
+    // Date-only values are calendar dates, not instants in the viewer's timezone.
+    const dateOnly = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
     return new Intl.DateTimeFormat('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
+        timeZone: dateOnly ? 'UTC' : undefined,
     }).format(new Date(date));
 }
 

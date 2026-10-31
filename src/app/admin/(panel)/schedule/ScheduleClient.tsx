@@ -172,7 +172,7 @@ export default function ScheduleClient({ tasks, projects, members, isAdmin, icsC
 
     setSaving(true);
     const res = await fetch("/api/admin/tasks", {
-      method: "POST",
+      method: editingId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: editingId ?? undefined,
