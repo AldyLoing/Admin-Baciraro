@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatRupiah, formatDate, KAS_PERCENT } from "@/lib/admin/format";
+import { isPayoutExpense } from "@/lib/admin/finance";
 
 type Project = {
   id: string;
@@ -28,17 +29,20 @@ type Member = {
 };
 
 type AllMember = { id: number; name: string; role: string };
+type AccountInfo = { code: number; name: string; type: string };
 
-type TxRow = { id: string; date: string; type: string; amount: number; source: string; description: string; reference: string; status?: string };
-type PayoutRow = { id: string; date: string; total_amount: number; orders_fee: number; net_amount: number; status: string; kas_optional_amount: number };
+type TxRow = { id: string; date: string; type: string; amount: number; source: string; description: string; reference: string; account_code?: number | null; status?: string };
+type PayoutRow = { id: string; date: string; total_amount: number; orders_fee: number; net_amount: number; status: string; kas_optional_amount: number; expense_amount: number };
 type ActivityRow = { id: number; user_name: string; action: string; entity_name: string; details: unknown; created_at: string };
 type Attachment = { name: string; url: string; size: number; uploaded_at: string };
 type InstallmentRow = { id: number; installment_no: number; amount: number; date: string; note: string | null; status: string; payout_id: number | null };
+type TaskRow = { id: string; title: string; description: string | null; status: string; due_date: string | null; priority: string; assigned_to: number | null };
 
 type Props = {
   project: Project;
   members: Member[];
   allMembers: AllMember[];
+  accounts: AccountInfo[];
   isAdmin: boolean;
   statusLabel: Record<string, string>;
   statusColor: Record<string, string>;
@@ -46,24 +50,94 @@ type Props = {
   payouts: PayoutRow[];
   activities: ActivityRow[];
   installments: InstallmentRow[];
+  tasks: TaskRow[];
   sisaTagihan: number;
   paidKlien: number;
   totalIncome: number;
   totalExpense: number;
+  unallocatedExpense: number;
   totalPaidPayout: number;
   pendingPayout: number;
-  dist: { total: number; kasAmount: number; distributable: number; totalPercent: number };
+  dist: {
+    total: number;
+    expenseAmount: number;
+    kasAmount: number;
+    distributable: number;
+    totalPercent: number;
+  };
 };
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition";
 const selectCls = "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition";
 
-type Tab = "ringkasan" | "keuangan" | "anggota" | "dokumen" | "aktivitas";
+type Tab = "ringkasan" | "keuangan" | "anggota" | "produksi" | "dokumen" | "aktivitas";
+type ProductionTrack = "infinite-book" | "piala" | "handover" | "other";
+
+const productionTracks: { key: ProductionTrack; label: string; badge: string }[] = [
+  { key: "infinite-book", label: "Infinite Book", badge: "border-[#D97A2B]/30 bg-[#D97A2B]/10 text-[#E9A64E]" },
+  { key: "piala", label: "Piala", badge: "border-blue-500/20 bg-blue-500/10 text-blue-300" },
+  { key: "handover", label: "Serah Terima", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" },
+  { key: "other", label: "Tugas Lain", badge: "border-white/10 bg-white/5 text-white/50" },
+];
+
+const documentationRules = [
+  "Minimal 1 foto setiap tahap yang berlaku; tahap penting juga menyertakan video pendek.",
+  "Dokumentasi diambil saat proses berlangsung, bukan dikumpulkan di akhir.",
+  "Pengambilan gambar dari posisi aman, tidak menghalangi operator, dan tidak membuka pelindung alat.",
+  "Berkas disimpan lokal dengan nama YYYYMMDD_KODE-PRODUKSI_NomorTahap_nama.jpg.",
+  "Live report cukup Story kegiatan oleh Given, dengan caption singkat.",
+  "Upload lengkap ke web dan Drive dilakukan setelah clean up, dikelompokkan per tahap.",
+];
+
+const documentationNotes = [
+  "Marlon hanya QC dan tidak ditugaskan mengambil dokumentasi, memperbaiki, mengemas, atau membersihkan.",
+  "Jika Given menjadi pelaksana utama, Aldy mengambil dokumentasi tahap tersebut; jika Aldy menjadi pelaksana utama, Given mengambil dokumentasi.",
+  "Video wajib pada tahap persiapan bahan, cacah, sitpress/oven, pemotongan, penjilidan/pemasangan baut, dan QC.",
+  "Urutan Piala pada project ini: kemas → clean up → upload. SOP Piala global belum diubah.",
+];
+
+const productionStatusLabel: Record<string, string> = {
+  pending: "Menunggu",
+  active: "Berjalan",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const productionStatusClass: Record<string, string> = {
+  pending: "bg-gray-500/10 text-gray-400",
+  active: "bg-blue-500/10 text-blue-400",
+  completed: "bg-emerald-500/10 text-emerald-400",
+  cancelled: "bg-red-500/10 text-red-400",
+};
+
+function getProductionTrack(title: string): ProductionTrack {
+  if (/^Infinite Book\b/i.test(title)) return "infinite-book";
+  if (/^Piala\b/i.test(title)) return "piala";
+  if (/^Serahkan\b/i.test(title)) return "handover";
+  return "other";
+}
+
+function getStageCode(title: string): string | null {
+  const match = title.match(/^(?:Infinite Book|Piala)\s+(\d+)\s+-\s+/i);
+  if (match) return match[1];
+  if (/^Piala\s*-\s*Kemas/i.test(title)) return "PACK";
+  return null;
+}
+
+function extractSection(description: string | null, label: string): string | null {
+  if (!description) return null;
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = description.match(
+    new RegExp(`(?:^|\\n)${escaped}:\\s*([\\s\\S]*?)(?=\\n(?:Pelaksana|Dokumentasi|QC tahap):|$)`)
+  );
+  return match?.[1].trim() || null;
+}
 
 export default function ProjectDetailClient({
   project: initialProject,
   members: initialMembers,
   allMembers,
+  accounts,
   isAdmin,
   statusLabel,
   statusColor,
@@ -71,10 +145,12 @@ export default function ProjectDetailClient({
   payouts: initialPayouts,
   activities: initialActivities,
   installments: initialInstallments,
+  tasks,
   sisaTagihan,
   paidKlien,
   totalIncome,
   totalExpense,
+  unallocatedExpense,
   totalPaidPayout,
   pendingPayout,
   dist,
@@ -82,7 +158,7 @@ export default function ProjectDetailClient({
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [members, setMembers] = useState(initialMembers);
-  const [tx] = useState(initialTx);
+  const tx = initialTx;
   const [payouts] = useState(initialPayouts);
   const [activities] = useState(initialActivities);
   const [activeTab, setActiveTab] = useState<Tab>("ringkasan");
@@ -116,6 +192,12 @@ export default function ProjectDetailClient({
   const [instDate, setInstDate] = useState(new Date().toISOString().slice(0, 10));
   const [instNote, setInstNote] = useState("");
   const [instLoading, setInstLoading] = useState<string | null>(null);
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
+  const [expenseSource, setExpenseSource] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDescription, setExpenseDescription] = useState("");
+  const [expenseAccount, setExpenseAccount] = useState(String(accounts[0]?.code ?? 5119));
+  const [expenseLoading, setExpenseLoading] = useState(false);
   const installments = initialInstallments;
 
   function showError(msg: string) { setError(msg); setSuccess(null); }
@@ -250,7 +332,7 @@ export default function ProjectDetailClient({
   }
 
   async function distributeInstallment(inst: InstallmentRow) {
-    if (!confirm(`Bagikan Cicilan ${inst.installment_no} senilai ${formatRupiah(inst.amount)} ke tim sekarang?\n\nAkan dibuat 1 payout (porsi per persen kontribusi) yang tinggal diproses.`)) return;
+    if (!confirm(`Bagikan Cicilan ${inst.installment_no} senilai ${formatRupiah(inst.amount)} ke tim sekarang?\n\nFee Kas Baciraro 10% dihitung dari bruto, lalu pengeluaran project yang belum tertutup ikut dipotong. Akan dibuat 1 payout yang tinggal diproses.`)) return;
     setInstLoading(String(inst.id));
     setError(null);
     const res = await fetch(`/api/admin/projects/${project.id}/installments/${inst.id}/distribute`, { method: "POST" });
@@ -278,12 +360,71 @@ export default function ProjectDetailClient({
     router.refresh();
   }
 
+  async function addExpense() {
+    const amount = Number(expenseAmount);
+    if (!expenseSource.trim()) { showError("Keterangan pengeluaran wajib diisi."); return; }
+    if (!amount || isNaN(amount) || amount <= 0) { showError("Nominal pengeluaran harus lebih dari 0."); return; }
+    setExpenseLoading(true);
+    setError(null);
+    const res = await fetch("/api/admin/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: expenseDate,
+        type: "expense",
+        amount,
+        source: expenseSource.trim(),
+        description: expenseDescription.trim(),
+        project_id: project.id,
+        account_code: Number(expenseAccount) || 5119,
+      }),
+    });
+    const data = await res.json();
+    setExpenseLoading(false);
+    if (!res.ok || !data.ok) { showError("Gagal menambah pengeluaran: " + (data.error ?? "unknown")); return; }
+    setExpenseSource("");
+    setExpenseAmount("");
+    setExpenseDescription("");
+    showSuccess(`Pengeluaran dicatat (${data.reference}).`);
+    router.refresh();
+  }
+
+  async function voidExpense(row: TxRow) {
+    if (!confirm(`Batalkan pengeluaran "${row.source}" senilai ${formatRupiah(row.amount)}?`)) return;
+    setExpenseLoading(true);
+    setError(null);
+    const res = await fetch("/api/admin/transactions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id }),
+    });
+    const data = await res.json();
+    setExpenseLoading(false);
+    if (!res.ok || !data.ok) { showError("Gagal membatalkan pengeluaran: " + (data.error ?? "unknown")); return; }
+    showSuccess("Pengeluaran dibatalkan.");
+    router.refresh();
+  }
+
+  const expenseRows = tx.filter(
+    (row) => row.type === "expense" && row.status !== "void" && !isPayoutExpense(row)
+  );
+  const accountMap = new Map(accounts.map((account) => [account.code, account.name]));
   const remainingFunds = totalIncome - totalExpense - totalPaidPayout;
+  const memberNameById = new Map(allMembers.map((member) => [member.id, member.name]));
+  const productionGroups = productionTracks
+    .map((track) => ({
+      ...track,
+      tasks: tasks.filter((task) => getProductionTrack(task.title) === track.key),
+    }))
+    .filter((track) => track.tasks.length > 0);
+  const completedProductionTasks = tasks.filter((task) => task.status === "completed").length;
+  const videoProductionTasks = tasks.filter((task) => /video/i.test(task.description ?? "")).length;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "ringkasan", label: "Ringkasan" },
     { key: "keuangan", label: "Keuangan" },
     { key: "anggota", label: "Anggota" },
+    ...(tasks.length > 0 ? [{ key: "produksi" as Tab, label: "Produksi" }] : []),
     { key: "dokumen", label: "Dokumen" },
     { key: "aktivitas", label: "Aktivitas" },
   ];
@@ -307,7 +448,7 @@ export default function ProjectDetailClient({
           <div className="flex gap-2">
             {isAdmin && (
               <>
-                {(project.status === "completed" || project.status === "paid") && (
+                {(project.status === "completed" || project.status === "paid") && !installments.some((inst) => inst.status !== "void") && (
                   <button onClick={() => router.push(`/admin/payouts?project=${project.id}`)} className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition">Buat Payout</button>
                 )}
                 <button onClick={() => { setEditing(!editing); setError(null); }} className="px-4 py-2.5 rounded-lg border border-white/10 text-white/60 text-sm font-medium hover:bg-white/5 transition">
@@ -373,8 +514,9 @@ export default function ProjectDetailClient({
               <p className="text-base sm:text-xl font-bold text-blue-400 mt-1">{formatRupiah(totalIncome)}</p>
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
-              <p className="text-xs font-medium text-white/50 uppercase">Total Pengeluaran</p>
+              <p className="text-xs font-medium text-white/50 uppercase">Pengeluaran Project</p>
               <p className="text-base sm:text-xl font-bold text-red-400 mt-1">{formatRupiah(totalExpense)}</p>
+              <p className="text-[11px] text-white/40 mt-1">Belum termasuk pencairan payout</p>
             </div>
             <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
               <p className="text-xs font-medium text-white/50 uppercase">Sudah Dibayar</p>
@@ -408,11 +550,17 @@ export default function ProjectDetailClient({
           </div>
           <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
             <h3 className="text-sm font-semibold text-white/70 mb-3">Ringkasan Bagi Hasil</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white/5 rounded-lg p-4"><p className="text-sm text-white/50">Nilai Total</p><p className="text-xl font-bold text-white mt-1">{formatRupiah(dist.total)}</p></div>
+              <div className="bg-red-500/10 rounded-lg p-4"><p className="text-sm text-red-400">Pengeluaran Project</p><p className="text-xl font-bold text-red-400 mt-1">{formatRupiah(dist.expenseAmount)}</p></div>
               <div className="bg-[#D97A2B]/10 rounded-lg p-4"><p className="text-sm text-[#E9A64E]">Kas Baciraro ({KAS_PERCENT}%)</p><p className="text-xl font-bold text-[#E9A64E] mt-1">{formatRupiah(dist.kasAmount)}</p></div>
               <div className="bg-emerald-500/10 rounded-lg p-4"><p className="text-sm text-emerald-400">Dibagikan ke Anggota</p><p className="text-xl font-bold text-emerald-400 mt-1">{formatRupiah(dist.distributable)}</p></div>
             </div>
+            {unallocatedExpense > 0 && (
+              <p className="text-xs text-amber-400 mt-3">
+                Pengeluaran yang belum tertutup payout: {formatRupiah(unallocatedExpense)}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -497,6 +645,8 @@ export default function ProjectDetailClient({
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-500/10 text-red-400">Dibatalkan</span>
                             ) : inst.payout_id ? (
                               <Link href="/admin/payouts" className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:underline">Dibagikan →</Link>
+                            ) : project.status !== "paid" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/5 text-white/40">Menunggu lunas</span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400">Belum dibagikan</span>
                             )}
@@ -504,7 +654,7 @@ export default function ProjectDetailClient({
                           <td className="px-3 py-2 text-right">
                             {isAdmin && !isVoid && (
                               <div className="inline-flex items-center gap-2">
-                                {!inst.payout_id && (
+                                {project.status === "paid" && !inst.payout_id && (
                                   <button
                                     onClick={() => distributeInstallment(inst)}
                                     disabled={instLoading === String(inst.id)}
@@ -534,8 +684,83 @@ export default function ProjectDetailClient({
             ) : (
               <p className="text-sm text-white/40">
                 Belum ada cicilan. Klien bayar sekaligus? Biarkan — pakai tombol <span className="text-white/70">Tandai Dibayar</span> di daftar project,
-                atau catat sekali cicilan senilai penuh di sini.
+                atau catat sekali cicilan senilai penuh di sini. Pembagian ke tim baru tersedia setelah project lunas.
               </p>
+            )}
+          </div>
+          <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-sm font-semibold text-white/70">Pengeluaran Project</h3>
+              <div className="flex items-center gap-3 text-xs text-white/50">
+                <span>Total <span className="text-red-400 font-semibold">{formatRupiah(totalExpense)}</span></span>
+                {unallocatedExpense > 0 && (
+                  <span>Belum tertutup <span className="text-amber-400 font-semibold">{formatRupiah(unallocatedExpense)}</span></span>
+                )}
+              </div>
+            </div>
+
+            {isAdmin && project.status !== "archived" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
+                  <input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className={inputCls + " text-sm"} />
+                  <input type="text" value={expenseSource} onChange={(e) => setExpenseSource(e.target.value)} placeholder="Keterangan pengeluaran" maxLength={200} className={inputCls + " text-sm xl:col-span-2"} />
+                  <div className="relative">
+                    <input type="number" min={1} step="any" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} placeholder="Nominal" className={inputCls + " text-sm pr-10"} />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">Rp</span>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 mb-5">
+                  <select value={expenseAccount} onChange={(e) => setExpenseAccount(e.target.value)} className={selectCls + " text-sm sm:w-56"}>
+                    {accounts.map((account) => (
+                      <option key={account.code} value={account.code}>{account.code} — {account.name}</option>
+                    ))}
+                  </select>
+                  <input type="text" value={expenseDescription} onChange={(e) => setExpenseDescription(e.target.value)} placeholder="Catatan (opsional)" maxLength={300} className={inputCls + " text-sm sm:flex-1"} />
+                  <button onClick={addExpense} disabled={expenseLoading} className="shrink-0 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-60">
+                    {expenseLoading ? "Menyimpan..." : "Tambah Pengeluaran"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {expenseRows.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-white/50 border-b border-white/10">
+                      <th className="px-3 py-2 font-medium">Tanggal</th>
+                      <th className="px-3 py-2 font-medium">Keterangan</th>
+                      <th className="px-3 py-2 font-medium">Akun</th>
+                      <th className="px-3 py-2 font-medium text-right">Jumlah</th>
+                      <th className="px-3 py-2 font-medium text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenseRows.map((row) => (
+                      <tr key={row.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-3 py-2 text-white/60 whitespace-nowrap">{formatDate(row.date)}</td>
+                        <td className="px-3 py-2 text-white">
+                          {row.source}
+                          {row.description && <p className="text-xs text-white/40">{row.description}</p>}
+                        </td>
+                        <td className="px-3 py-2 text-white/50 text-xs">
+                          {row.account_code ? `${row.account_code} — ${accountMap.get(Number(row.account_code)) ?? "Unknown"}` : "-"}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold text-red-400">-{formatRupiah(row.amount)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {isAdmin && (
+                            <button onClick={() => voidExpense(row)} disabled={expenseLoading} className="px-2.5 py-1 rounded-lg border border-white/15 text-white/50 text-xs font-medium hover:bg-white/5 hover:text-red-400 transition disabled:opacity-60">
+                              Batalkan
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-white/40">Belum ada pengeluaran project.</p>
             )}
           </div>
           {tx.length > 0 && (
@@ -576,12 +801,13 @@ export default function ProjectDetailClient({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs text-white/50 border-b border-white/10">
-                    <th className="px-3 py-2 font-medium">Tanggal</th><th className="px-3 py-2 font-medium">Status</th><th className="px-3 py-2 font-medium text-right">Kas</th><th className="px-3 py-2 font-medium text-right">Net</th>
+                    <th className="px-3 py-2 font-medium">Tanggal</th><th className="px-3 py-2 font-medium">Status</th><th className="px-3 py-2 font-medium text-right">Pengeluaran</th><th className="px-3 py-2 font-medium text-right">Kas</th><th className="px-3 py-2 font-medium text-right">Net</th>
                   </tr></thead>
                   <tbody>{payouts.map((p) => (
                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="px-3 py-2 text-white/60 whitespace-nowrap">{formatDate(p.date)}</td>
                       <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${p.status === "paid" ? "bg-emerald-500/10 text-emerald-400" : p.status === "processing" ? "bg-blue-500/10 text-blue-400" : "bg-amber-500/10 text-amber-400"}`}>{p.status === "paid" ? "Dibayar" : p.status === "processing" ? "Diproses" : "Menunggu"}</span></td>
+                      <td className="px-3 py-2 text-right text-red-400">{p.expense_amount > 0 ? formatRupiah(p.expense_amount) : "-"}</td>
                       <td className="px-3 py-2 text-right text-amber-400">{formatRupiah(p.orders_fee)}</td>
                       <td className="px-3 py-2 text-right font-semibold text-white">{formatRupiah(p.net_amount)}</td>
                     </tr>
@@ -668,6 +894,147 @@ export default function ProjectDetailClient({
               <span>Total kontribusi</span>
               <span>{dist.totalPercent}% {dist.totalPercent === 100 ? "✓" : `(kurang ${(100 - dist.totalPercent).toFixed(1)}%)`}</span>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Produksi */}
+      {activeTab === "produksi" && (
+        <div className="space-y-5">
+          {productionGroups.length === 0 ? (
+            <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-10 text-center text-white/40">
+              <p className="text-sm">Belum ada tahap produksi pada project ini.</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white/70">SOP & Dokumentasi Produksi</h3>
+                    <p className="text-xs text-white/40 mt-1">
+                      Rencana dokumentasi mengikuti tahap dan PIC yang sudah tercatat pada tugas project.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="text-white/40">Tahap</p>
+                      <p className="mt-1 text-base font-bold text-white">{tasks.length}</p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+                      <p className="text-emerald-300/70">Selesai</p>
+                      <p className="mt-1 text-base font-bold text-emerald-300">{completedProductionTasks}</p>
+                    </div>
+                    <div className="rounded-lg border border-[#D97A2B]/20 bg-[#D97A2B]/10 px-3 py-2">
+                      <p className="text-[#E9A64E]/70">Wajib video</p>
+                      <p className="mt-1 text-base font-bold text-[#E9A64E]">{videoProductionTasks}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-xl border border-white/5 bg-[#0d0d0d] p-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Aturan Dokumentasi Umum</h4>
+                    <ul className="mt-3 space-y-2 text-sm text-white/60">
+                      {documentationRules.map((rule) => (
+                        <li key={rule} className="flex gap-2.5">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#D97A2B]" />
+                          <span className="leading-relaxed">{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-white/5 bg-[#0d0d0d] p-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Penegasan</h4>
+                    <ul className="mt-3 space-y-2 text-sm text-white/60">
+                      {documentationNotes.map((note) => (
+                        <li key={note} className="flex gap-2.5">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E9A64E]" />
+                          <span className="leading-relaxed">{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {productionGroups.map((track) => (
+                <div key={track.key} className="bg-[#151515] rounded-xl border border-white/10 p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${track.badge}`}>{track.label}</span>
+                      <span className="text-xs text-white/40">{track.tasks.length} tahap</span>
+                    </div>
+                    <span className="text-xs text-white/40">Dokumentasi per tahap</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {track.tasks.map((task) => {
+                      const stageCode = getStageCode(task.title);
+                      const executor = extractSection(task.description, "Pelaksana");
+                      const documentation = extractSection(task.description, "Dokumentasi");
+                      const qc = extractSection(task.description, "QC tahap");
+                      const assignedName = task.assigned_to ? memberNameById.get(task.assigned_to) : null;
+                      const hasVideo = /video/i.test(task.description ?? "");
+                      const hasStructuredSections = Boolean(executor || documentation || qc);
+
+                      return (
+                        <article key={task.id} className="rounded-xl border border-white/10 bg-[#111] p-4 md:p-5">
+                          <div className="flex gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#C44A3A] to-[#D97A2B] text-xs font-bold text-white">
+                              {stageCode ?? "•"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-base font-semibold text-white">{task.title}</h4>
+                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${productionStatusClass[task.status] ?? productionStatusClass.pending}`}>
+                                  {productionStatusLabel[task.status] ?? task.status}
+                                </span>
+                                {hasVideo && (
+                                  <span className="rounded-full border border-[#D97A2B]/30 bg-[#D97A2B]/10 px-2 py-0.5 text-[11px] font-medium text-[#E9A64E]">
+                                    Video
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/40">
+                                {task.due_date && <span>📅 {formatDate(task.due_date)}</span>}
+                                {assignedName && <span>PIC: {assignedName}</span>}
+                              </div>
+
+                              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                {executor && (
+                                  <div className="rounded-lg border border-white/5 bg-[#0d0d0d] p-3 md:col-span-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Pelaksanaan</p>
+                                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/60">{executor}</p>
+                                  </div>
+                                )}
+                                {documentation && (
+                                  <div className="rounded-lg border border-[#D97A2B]/20 bg-[#D97A2B]/5 p-3 md:col-span-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#E9A64E]/70">Dokumentasi</p>
+                                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/70">{documentation}</p>
+                                  </div>
+                                )}
+                                {qc && (
+                                  <div className="rounded-lg border border-white/5 bg-[#0d0d0d] p-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">QC Tahap</p>
+                                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/60">{qc}</p>
+                                  </div>
+                                )}
+                                {!hasStructuredSections && task.description && (
+                                  <div className="rounded-lg border border-white/5 bg-[#0d0d0d] p-3 md:col-span-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Detail</p>
+                                    <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/60">{task.description}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}

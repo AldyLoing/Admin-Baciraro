@@ -43,6 +43,11 @@ Panel manajemen internal untuk organisasi Baciraro — dibangun dengan **Next.js
 - Catatan rapat dengan agenda, notulensi, dan daftar hadir
 - Action items dengan penanggung jawab & deadline
 
+### SOP Produksi
+- Halaman SOP 13 tahap produksi piala daur ulang: aturan berat, dokumentasi per tahap, publikasi Instagram/Facebook/TikTok, QC, dan clean up studio
+- Pilihan SOP Infinite Book 17 tahap: sampul sitpress, isi laminasi opsional, jilid spiral, Story kegiatan, dan upload dokumentasi setelah clean up
+- Checklist interaktif terpisah per produk + cetak / simpan PDF
+
 ### Anggota
 - Statistik per anggota: project, payout diterima, jumlah transaksi dibuat
 - Manajemen akun (CRUD)
@@ -180,6 +185,7 @@ src/
 │   │       ├── payouts/              # Payouts
 │   │       ├── schedule/             # Jadwal & Tugas
 │   │       ├── meetings/             # Rapat & Tindak Lanjut
+│   │       ├── sop/                  # SOP Produksi Piala dan Infinite Book
 │   │       ├── members/              # Anggota
 │   │       ├── workload/             # Beban Kerja
 │   │       ├── leaderboard/          # Leaderboard

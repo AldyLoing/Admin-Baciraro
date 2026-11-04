@@ -17,6 +17,8 @@ type Payout = {
   status: "pending" | "processing" | "paid" | "cancelled";
   finalized_at: string | null;
   created_at: string;
+  kas_optional_amount: number;
+  expense_deducted: number;
 };
 
 type PayoutMember = {
@@ -29,7 +31,15 @@ type PayoutMember = {
   tugas: string | null;
 };
 
-type Project = { id: string; name: string; status: string; total_value: number; client_name: string | null };
+type Project = {
+  id: string;
+  name: string;
+  status: string;
+  total_value: number;
+  client_name: string | null;
+  has_installments: boolean;
+  unallocated_expense: number;
+};
 type ProjectMember = { id: string; project_id: string; member_id: number | null; contribution_percent: number; member_name: string; tugas: string | null };
 type AllMember = { id: number; name: string; role: string; status: string };
 type FormMember = { key: string; member_id: number | null; member_name: string; contribution_percent: number; tugas: string };
@@ -159,10 +169,17 @@ export default function PayoutsClient({
     const contribs = formMembers.map((fm) => ({ percent: fm.contribution_percent }));
     const overrideTotal = form.total_amount !== "" ? Number(form.total_amount) : 0;
     const total = overrideTotal > 0 ? overrideTotal : selectedProject.total_value;
-    return calculateDistribution(total, contribs);
+    return calculateDistribution(
+      total,
+      contribs,
+      0,
+      selectedProject.unallocated_expense
+    );
   }, [selectedProject, formMembers, form.total_amount]);
 
-  const eligibleProjects = projects.filter((p) => p.status === "completed" || p.status === "paid");
+  const eligibleProjects = projects.filter(
+    (p) => !p.has_installments && (p.status === "completed" || p.status === "paid")
+  );
 
   async function createPayout(e: React.FormEvent) {
     e.preventDefault();
@@ -264,7 +281,9 @@ export default function PayoutsClient({
     }
 
     const contribs = (membersByPayout.get(p.id) ?? []).map((m) => ({ percent: m.contribution_percent }));
-    const dist = calculateDistribution(actual, contribs);
+    const dist =
+      data.distribution ??
+      calculateDistribution(actual, contribs, kasOpt, p.expense_deducted);
     const memberAmounts = (membersByPayout.get(p.id) ?? []).map((m) => {
       const amount = dist.totalPercent > 0 ? (dist.distributable * m.contribution_percent) / dist.totalPercent : 0;
       return { id: m.id, amount: Number(amount.toFixed(2)) };
@@ -277,6 +296,8 @@ export default function PayoutsClient({
               ...r,
               total_amount: Number(dist.total.toFixed(2)),
               orders_fee: Number(dist.kasAmount.toFixed(2)),
+              kas_optional_amount: Number(dist.kasOptionalAmount.toFixed(2)),
+              expense_deducted: Number(dist.expenseAmount.toFixed(2)),
               net_amount: Number(dist.distributable.toFixed(2)),
               finalized_at: new Date().toISOString(),
             }
@@ -295,7 +316,7 @@ export default function PayoutsClient({
   }
 
   function exportCsv() {
-    const header = ["Tanggal", "Sumber", "Nama", "Total (Rp)", "Fee Baciraro (Rp)", "Net (Rp)", "Status", "Rincian Member"];
+    const header = ["Tanggal", "Sumber", "Nama", "Total (Rp)", "Pengeluaran (Rp)", "Fee Baciraro (Rp)", "Net (Rp)", "Status", "Rincian Member"];
     const lines = filtered.map((p) => {
       const ms = (membersByPayout.get(p.id) ?? [])
         .map((m) => `${m.name} (${m.contribution_percent}%${m.tugas ? ` - ${m.tugas}` : ""}) ${formatRupiah(m.amount)}`)
@@ -305,6 +326,7 @@ export default function PayoutsClient({
         p.source_type === "penjualan" ? "Penjualan" : "Project",
         `"${p.project_name.replace(/"/g, '""')}"`,
         p.total_amount,
+        p.expense_deducted,
         p.orders_fee,
         p.net_amount,
         statusLabel[p.status],
@@ -331,7 +353,7 @@ export default function PayoutsClient({
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Payouts</h1>
           <p className="text-white/50 mt-1">
-            Pencairan dana project &amp; penjualan ke anggota ({KAS_PERCENT}% fee Baciraro otomatis).
+            Pencairan dana project &amp; penjualan ke anggota (fee Baciraro {KAS_PERCENT}% otomatis, pengeluaran project ikut dipotong).
           </p>
         </div>
         <div className="flex gap-2 print:hidden">
@@ -376,7 +398,7 @@ export default function PayoutsClient({
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Payout</p>
           <p className="text-xl font-bold text-white mt-1">{formatRupiah(totalNet)}</p>
-          <p className="text-xs text-white/40 mt-1">net setelah fee Baciraro</p>
+          <p className="text-xs text-white/40 mt-1">net setelah fee &amp; pengeluaran project</p>
         </div>
         <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Sudah Dibayar</p>
@@ -495,10 +517,14 @@ export default function PayoutsClient({
           {preview && (
             <div className="bg-white/5 rounded-xl p-4">
               <p className="text-sm font-semibold text-white mb-2">Ringkasan (estimasi dari nilai project)</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-white/50">{form.total_amount !== "" && Number(form.total_amount) > 0 ? "Total Riil" : "Nilai Project"}</p>
                   <p className="font-semibold text-white">{formatRupiah(preview.total)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/50">Pengeluaran Project</p>
+                  <p className="font-semibold text-red-400">{formatRupiah(preview.expenseAmount)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-white/50">Fee Baciraro ({KAS_PERCENT}%)</p>
@@ -577,6 +603,9 @@ export default function PayoutsClient({
                   </div>
                   <div className="hidden md:block text-right">
                     <p className="text-xs text-white/40">Total {formatRupiah(p.total_amount)}</p>
+                    {p.expense_deducted > 0 && (
+                      <p className="text-xs text-red-400">Pengeluaran {formatRupiah(p.expense_deducted)}</p>
+                    )}
                     <p className="text-xs text-[#E9A64E]">Fee {formatRupiah(p.orders_fee)}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -673,9 +702,21 @@ export default function PayoutsClient({
                           const actual = Number(raw);
                           if (raw === undefined || raw === "" || isNaN(actual) || actual < 0) return null;
                           const kasOpt = Number(kasOptionalDrafts[p.id]) || 0;
-                          const dist = calculateDistribution(actual, ms.map((m) => ({ percent: m.contribution_percent })), kasOpt);
+                          const project = projects.find((pr) => pr.id === p.project_id);
+                          const availableExpense =
+                            (project?.unallocated_expense ?? 0) + p.expense_deducted;
+                          const dist = calculateDistribution(
+                            actual,
+                            ms.map((m) => ({ percent: m.contribution_percent })),
+                            kasOpt,
+                            availableExpense
+                          );
                           return (
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-sm">
+                              <div>
+                                <p className="text-xs text-white/50">Pengeluaran Project</p>
+                                <p className="font-semibold text-red-400">{formatRupiah(dist.expenseAmount)}</p>
+                              </div>
                               <div>
                                 <p className="text-xs text-white/50">Fee Baciraro (10%)</p>
                                 <p className="font-semibold text-[#E9A64E]">{formatRupiah(dist.kasAmount)}</p>

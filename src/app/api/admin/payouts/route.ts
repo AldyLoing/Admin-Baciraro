@@ -3,6 +3,14 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
 import { auditMutation } from "@/lib/admin/audit";
+import { getProjectExpenseState } from "@/lib/admin/finance";
+
+type SelectedMember = {
+  member_id: number | string | null;
+  name: string | null;
+  contribution_percent: number | string;
+  tugas: string | null;
+};
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -22,7 +30,20 @@ export async function POST(req: NextRequest) {
 
   if (!project) return NextResponse.json({ error: "Project tidak ditemukan." }, { status: 404 });
 
-  let selected = Array.isArray(members) && members.length > 0 ? members : null;
+  const { count: installmentCount } = await supabase
+    .from("project_installments")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", project_id)
+    .eq("status", "active");
+  if ((installmentCount ?? 0) > 0) {
+    return NextResponse.json(
+      { error: "Project ini memakai cicilan — bagikan dari detail project setelah lunas." },
+      { status: 400 }
+    );
+  }
+
+  let selected: SelectedMember[] | null =
+    Array.isArray(members) && members.length > 0 ? (members as SelectedMember[]) : null;
 
   if (!selected) {
     const { data: projectMembers } = await supabase
@@ -30,7 +51,7 @@ export async function POST(req: NextRequest) {
       .select("member_id, name, contribution_percent, tugas")
       .eq("project_id", project_id)
       .is("removed_at", null);
-    selected = (projectMembers ?? []).map((pm: any) => ({
+    selected = (projectMembers ?? []).map((pm) => ({
       member_id: pm.member_id,
       name: pm.name ?? "Anggota",
       contribution_percent: Number(pm.contribution_percent),
@@ -39,7 +60,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (selected.length > 0) {
-    const totalPercent = selected.reduce((s: number, m: any) => s + (Number(m.contribution_percent) || 0), 0);
+    const totalPercent = selected.reduce((s: number, m) => s + (Number(m.contribution_percent) || 0), 0);
     if (Math.round(totalPercent) !== 100) {
       return NextResponse.json(
         { error: `Total kontribusi harus 100% (sekarang ${totalPercent.toFixed(2)}%).` },
@@ -62,9 +83,12 @@ export async function POST(req: NextRequest) {
     created_by: admin.id,
   };
 
+  let expenseAmount = 0;
   if (isFinalized) {
-    const contribs = selected.map((m: any) => ({ percent: Number(m.contribution_percent) || 0 }));
-    const dist = calculateDistribution(nominal, contribs);
+    const contribs = selected.map((m) => ({ percent: Number(m.contribution_percent) || 0 }));
+    const expenseState = await getProjectExpenseState(supabase, project.id);
+    const dist = calculateDistribution(nominal, contribs, 0, expenseState.unallocatedExpense);
+    expenseAmount = dist.expenseAmount;
     insertData.total_amount = Number(dist.total.toFixed(2));
     insertData.orders_fee = Number(dist.kasAmount.toFixed(2));
     insertData.net_amount = Number(dist.distributable.toFixed(2));
@@ -94,8 +118,8 @@ export async function POST(req: NextRequest) {
 
     let memberAmount = 0;
     if (isFinalized) {
-      const contribs = selected.map((s: any) => ({ percent: Number(s.contribution_percent) || 0 }));
-      const dist = calculateDistribution(nominal, contribs);
+      const contribs = selected.map((s) => ({ percent: Number(s.contribution_percent) || 0 }));
+      const dist = calculateDistribution(nominal, contribs, 0, expenseAmount);
       memberAmount = dist.totalPercent > 0 ? (dist.distributable * percent) / dist.totalPercent : 0;
     }
 
@@ -118,7 +142,7 @@ export async function POST(req: NextRequest) {
   const ok = await auditMutation({
     supabase, admin, action: "create", entityType: "payout", entityId: payout.id,
     entityName: `${project.name} — ${date}`,
-    after: { ...insertData, member_count: selected.length, nominal: nominal || null },
+    after: { ...insertData, member_count: selected.length, nominal: nominal || null, expense_deducted: expenseAmount },
   });
   if (!ok) return NextResponse.json({ error: "Payout dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
 

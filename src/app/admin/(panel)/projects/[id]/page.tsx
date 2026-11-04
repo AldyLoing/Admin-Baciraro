@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
+import { payoutExpenseAmount, sumAllocatedExpense, sumOperationalExpense } from "@/lib/admin/finance";
 import ProjectDetailClient from "./ProjectDetailClient";
 
 export const revalidate = 30;
@@ -26,7 +27,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [{ data: projectMembers }, { data: allMembers }, { data: transactions }, { data: payouts }, { data: activities }, { data: installments }] = await Promise.all([
+  const [{ data: projectMembers }, { data: allMembers }, { data: transactions }, { data: payouts }, { data: activities }, { data: installments }, { data: accounts }, { data: tasks }] = await Promise.all([
     supabase
       .from("project_members")
       .select("id, member_id, name, contribution_percent, amount, tugas, team_members(id, name, role, photo_url)")
@@ -59,27 +60,46 @@ export default async function ProjectDetailPage({
       .select("id, installment_no, amount, date, note, status, payout_id")
       .eq("project_id", id)
       .order("installment_no", { ascending: true }),
+    supabase
+      .from("accounts")
+      .select("code, name, type")
+      .eq("type", "expense")
+      .order("code", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("id, title, description, status, due_date, priority, assigned_to")
+      .eq("project_id", id)
+      .neq("status", "cancelled")
+      .order("due_date", { ascending: true })
+      .order("title", { ascending: true }),
   ]);
 
-  const contributions = (projectMembers ?? []).map((pm: any) => ({
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const contributions = (projectMembers ?? []).map((pm) => ({
     profileId: pm.member_id,
     percent: Number(pm.contribution_percent),
   }));
 
-  const dist = calculateDistribution(Number(project.total_value) || 0, contributions);
+  const allTx = transactions ?? [];
+  const activeTx = allTx.filter((t) => t.status !== "void");
+  const totalIncome = round2(
+    activeTx.filter((t) => t.type === "income").reduce((s: number, t) => s + Number(t.amount), 0)
+  );
+  const operationalExpense = sumOperationalExpense(allTx);
+  const allPayouts = payouts ?? [];
+  const totalPaidPayout = round2(
+    allPayouts.filter((p) => p.status === "paid").reduce((s: number, p) => s + Number(p.net_amount), 0)
+  );
+  const pendingPayout = round2(
+    allPayouts.filter((p) => p.status !== "paid" && p.status !== "cancelled").reduce((s: number, p) => s + Number(p.net_amount), 0)
+  );
+  const unallocatedExpense = Math.max(
+    0,
+    round2(operationalExpense - sumAllocatedExpense(allPayouts))
+  );
 
-  const allTx = (transactions ?? []) as any[];
-  const activeTx = allTx.filter((t: any) => t.status !== "void");
-  const totalIncome = activeTx.filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
-  const totalExpense = activeTx.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
-  const allPayouts = (payouts ?? []) as any[];
-  const totalPaidPayout = allPayouts.filter((p: any) => p.status === "paid").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
-  const pendingPayout = allPayouts.filter((p: any) => p.status !== "paid" && p.status !== "cancelled").reduce((s: number, p: any) => s + Number(p.net_amount), 0);
-
-  // Sisa tagihan klien = total_value − Σ income "Pembayaran klien%"
-  // (mencakup pembayaran lama & cicilan → project lama ikut terbaca benar).
-  const round2 = (n: number) => Math.round(n * 100) / 100;
   const totalValue = round2(Number(project.total_value) || 0);
+  const dist = calculateDistribution(totalValue, contributions, 0, operationalExpense);
   const paidKlien = round2(
     activeTx
       .filter((t) => t.type === "income" && (t.source ?? "").startsWith("Pembayaran klien"))
@@ -98,29 +118,46 @@ export default async function ProjectDetailPage({
     <div className="max-w-5xl mx-auto">
       <ProjectDetailClient
         project={project}
-        members={(projectMembers ?? []).map((pm: any) => ({
-          pm_id: pm.id,
-          member_id: pm.member_id ?? null,
-          name: pm.name ?? pm.team_members?.name ?? "Kontributor",
-          role: pm.team_members?.role ?? null,
-          avatar_url: pm.team_members?.photo_url ?? null,
-          contribution_percent: Number(pm.contribution_percent),
-          amount: pm.amount == null ? null : Number(pm.amount),
-          tugas: pm.tugas ?? null,
-        }))}
+        members={(projectMembers ?? []).map((pm) => {
+          const teamMember = Array.isArray(pm.team_members)
+            ? pm.team_members[0]
+            : pm.team_members;
+          return {
+            pm_id: pm.id,
+            member_id: pm.member_id ?? null,
+            name: pm.name ?? teamMember?.name ?? "Kontributor",
+            role: teamMember?.role ?? null,
+            avatar_url: teamMember?.photo_url ?? null,
+            contribution_percent: Number(pm.contribution_percent),
+            amount: pm.amount == null ? null : Number(pm.amount),
+            tugas: pm.tugas ?? null,
+          };
+        })}
         allMembers={(allMembers ?? []).map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+        accounts={(accounts ?? []).map((a) => ({ code: Number(a.code), name: a.name, type: a.type }))}
+        tasks={(tasks ?? []).map((t) => ({
+          id: String(t.id),
+          title: t.title,
+          description: t.description ?? null,
+          status: t.status,
+          due_date: t.due_date ?? null,
+          priority: t.priority,
+          assigned_to: t.assigned_to == null ? null : Number(t.assigned_to),
+        }))}
         isAdmin={admin?.is_admin ?? false}
         statusLabel={statusLabel}
         statusColor={statusColor}
         transactions={allTx.map((t) => ({
           id: t.id, date: t.date, type: t.type, amount: Number(t.amount),
           source: t.source, description: t.description, reference: t.reference,
+          account_code: t.account_code == null ? null : Number(t.account_code),
           status: t.status ?? "active",
         }))}
         payouts={allPayouts.map((p) => ({
           id: p.id, date: p.date, total_amount: Number(p.total_amount),
           orders_fee: Number(p.orders_fee), net_amount: Number(p.net_amount),
           status: p.status, kas_optional_amount: Number(p.kas_optional_amount || 0),
+          expense_amount: payoutExpenseAmount(p),
         }))}
         activities={(activities ?? []).map((a) => ({
           id: a.id, user_name: a.user_name ?? "-", action: a.action,
@@ -135,7 +172,8 @@ export default async function ProjectDetailPage({
         sisaTagihan={sisaTagihan}
         paidKlien={paidKlien}
         totalIncome={totalIncome}
-        totalExpense={totalExpense}
+        totalExpense={operationalExpense}
+        unallocatedExpense={unallocatedExpense}
         totalPaidPayout={totalPaidPayout}
         pendingPayout={pendingPayout}
         dist={dist}

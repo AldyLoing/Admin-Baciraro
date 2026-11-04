@@ -25,10 +25,19 @@ type Payout = {
 };
 
 export default function InvoicePrint({ payout }: { payout: Payout }) {
+  const total = payout.total_amount || payout.net_amount / 0.9;
+  const expenseAmount = Math.max(
+    0,
+    payout.total_amount -
+      payout.orders_fee -
+      (payout.kas_optional_amount || 0) -
+      payout.net_amount
+  );
   const dist = calculateDistribution(
-    payout.total_amount || payout.net_amount / 0.9,
+    total,
     payout.members.map((m) => ({ percent: m.contribution_percent })),
-    payout.kas_optional_percent || 0
+    payout.kas_optional_percent || 0,
+    expenseAmount
   );
 
   return (
@@ -82,6 +91,12 @@ export default function InvoicePrint({ payout }: { payout: Payout }) {
             <tr className="border-b border-gray-100">
               <td className="py-2">Kas Tambahan ({payout.kas_optional_percent}%)</td>
               <td className="py-2 text-right font-mono text-red-600">-{formatRupiah(dist.kasOptionalAmount)}</td>
+            </tr>
+          )}
+          {dist.expenseAmount > 0 && (
+            <tr className="border-b border-gray-100">
+              <td className="py-2">Pengeluaran Project</td>
+              <td className="py-2 text-right font-mono text-red-600">-{formatRupiah(dist.expenseAmount)}</td>
             </tr>
           )}
           <tr className="border-b border-gray-200 font-bold">

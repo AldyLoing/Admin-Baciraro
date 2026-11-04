@@ -3,6 +3,7 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { calculateDistribution } from "@/lib/admin/format";
 import { auditMutation } from "@/lib/admin/audit";
+import { getProjectExpenseState } from "@/lib/admin/finance";
 
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
@@ -19,7 +20,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: payout } = await supabase
     .from("payouts")
-    .select("id, status, project_name, date, total_amount, orders_fee, net_amount, kas_optional_percent, kas_optional_amount, finalized_at")
+    .select("id, project_id, status, project_name, date, total_amount, orders_fee, net_amount, kas_optional_percent, kas_optional_amount, finalized_at")
     .eq("id", id)
     .single();
   if (!payout) return NextResponse.json({ error: "Payout tidak ditemukan." }, { status: 404 });
@@ -34,7 +35,10 @@ export async function PATCH(req: NextRequest) {
 
   const contribs = (members ?? []).map((m: { contribution_percent: number | string }) => ({ percent: Number(m.contribution_percent) }));
   const kasOpt = Number(kas_optional_percent) || 0;
-  const dist = calculateDistribution(actual, contribs, kasOpt);
+  const expenseState = payout.project_id
+    ? await getProjectExpenseState(supabase, payout.project_id, id)
+    : { operationalExpense: 0, allocatedExpense: 0, unallocatedExpense: 0 };
+  const dist = calculateDistribution(actual, contribs, kasOpt, expenseState.unallocatedExpense);
 
   const finalizedAt = new Date().toISOString();
   const updates = {
@@ -72,12 +76,13 @@ export async function PATCH(req: NextRequest) {
     supabase, admin, action: "finalize", entityType: "payout",
     entityId: id, entityName: payout.project_name || `payout ${id}`,
     before: payout, after: updates,
-    extra: { actual_total: actual, kas_optional_percent: kasOpt },
+    extra: { actual_total: actual, kas_optional_percent: kasOpt, expense_deducted: dist.expenseAmount },
   });
   if (!okFinalize) return NextResponse.json({ error: "Total riil tersimpan, tetapi audit gagal. Periksa log server." }, { status: 500 });
 
   return NextResponse.json({
     ok: true,
+    distribution: dist,
     message: `Total riil disimpan. Net untuk member ${dist.distributable.toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })}.`,
   });
 }

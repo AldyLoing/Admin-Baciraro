@@ -3,6 +3,7 @@ import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { auditMutation, createNotification } from "@/lib/admin/audit";
 import { calculateDistribution, formatRupiah } from "@/lib/admin/format";
+import { getProjectExpenseState } from "@/lib/admin/finance";
 
 // Bagikan satu cicilan ke tim: buat payout pending senilai nominal cicilan,
 // rincian per anggota pakai aturan yang sama dengan payout biasa
@@ -29,10 +30,16 @@ export async function POST(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name")
+    .select("id, name, status")
     .eq("id", id)
     .single();
   if (!project) return NextResponse.json({ error: "Project tidak ditemukan." }, { status: 404 });
+  if (project.status !== "paid") {
+    return NextResponse.json(
+      { error: "Cicilan baru bisa dibagikan setelah project lunas." },
+      { status: 400 }
+    );
+  }
 
   const { data: projectMembers } = await supabase
     .from("project_members")
@@ -61,7 +68,13 @@ export async function POST(
 
   const nominal = Math.round((Number(inst.amount) || 0) * 100) / 100;
   const contribs = selected.map((m) => ({ percent: m.contribution_percent }));
-  const dist = calculateDistribution(nominal, contribs);
+  const expenseState = await getProjectExpenseState(supabase, id);
+  const dist = calculateDistribution(
+    nominal,
+    contribs,
+    0,
+    expenseState.unallocatedExpense
+  );
 
   // 1) Payout pending (finalized_at terisi → tinggal proses/bayar seperti biasa)
   const insertData: Record<string, unknown> = {
@@ -127,7 +140,7 @@ export async function POST(
   const okP = await auditMutation({
     supabase, admin, action: "create", entityType: "payout", entityId: payout.id,
     entityName: `${project.name} — ${inst.date} (Cicilan ${inst.installment_no})`,
-    after: { ...insertData, member_count: selected.length, installment_id: inst.id },
+    after: { ...insertData, member_count: selected.length, installment_id: inst.id, expense_deducted: dist.expenseAmount },
   });
   if (!okP) {
     return NextResponse.json({ error: "Payout dibuat, tetapi audit gagal. Periksa log server." }, { status: 500 });
@@ -158,6 +171,6 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     payout_id: payout.id,
-    message: `Cicilan ${inst.installment_no} dibagikan — payout ${formatRupiah(dist.total)} menunggu diproses.`,
+    message: `Cicilan ${inst.installment_no} dibagikan — payout bruto ${formatRupiah(dist.total)}, net ${formatRupiah(dist.distributable)} menunggu diproses.`,
   });
 }

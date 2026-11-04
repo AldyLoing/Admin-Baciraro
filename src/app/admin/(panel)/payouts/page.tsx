@@ -1,6 +1,25 @@
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
+import {
+  payoutExpenseAmount,
+  sumAllocatedExpense,
+  sumOperationalExpense,
+  type ExpenseTx,
+  type PayoutFinance,
+} from "@/lib/admin/finance";
 import PayoutsClient from "./PayoutsClient";
+
+type ProjectMemberRow = {
+  id: string;
+  project_id: string;
+  member_id: number | null;
+  name: string | null;
+  contribution_percent: number | string;
+  tugas: string | null;
+};
+
+type ProjectExpenseRow = ExpenseTx & { project_id: string | number | null };
+type ProjectPayoutRow = PayoutFinance & { project_id: string | number | null };
 
 export const revalidate = 15;
 
@@ -19,10 +38,12 @@ export default async function AdminPayoutsPage({
     { data: projects },
     { data: projectMembers },
     { data: allMembers },
+    { data: transactions },
+    { data: projectInstallments },
   ] = await Promise.all([
     supabase
       .from("payouts")
-      .select("id, project_id, project_name, sale_id, source_type, date, total_amount, orders_fee, net_amount, status, finalized_at, created_at")
+      .select("id, project_id, project_name, sale_id, source_type, date, total_amount, orders_fee, net_amount, status, finalized_at, created_at, kas_optional_amount")
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase
@@ -41,7 +62,35 @@ export default async function AdminPayoutsPage({
       .from("team_members")
       .select("id, name, role, status")
       .order("name"),
+    supabase
+      .from("transactions")
+      .select("project_id, type, amount, source, description, status")
+      .eq("type", "expense"),
+    supabase
+      .from("project_installments")
+      .select("project_id")
+      .eq("status", "active"),
   ]);
+
+  const expenseByProject = new Map<string, ProjectExpenseRow[]>();
+  for (const tx of (transactions ?? []) as ProjectExpenseRow[]) {
+    if (!tx.project_id) continue;
+    const rows = expenseByProject.get(String(tx.project_id)) ?? [];
+    rows.push(tx);
+    expenseByProject.set(String(tx.project_id), rows);
+  }
+
+  const payoutByProject = new Map<string, ProjectPayoutRow[]>();
+  for (const payout of (payouts ?? []) as ProjectPayoutRow[]) {
+    if (!payout.project_id) continue;
+    const rows = payoutByProject.get(String(payout.project_id)) ?? [];
+    rows.push(payout);
+    payoutByProject.set(String(payout.project_id), rows);
+  }
+
+  const projectsWithInstallments = new Set(
+    (projectInstallments ?? []).map((i) => String(i.project_id))
+  );
 
   return (
     <PayoutsClient
@@ -58,6 +107,8 @@ export default async function AdminPayoutsPage({
         status: p.status,
         finalized_at: p.finalized_at ?? null,
         created_at: p.created_at,
+        kas_optional_amount: Number(p.kas_optional_amount || 0),
+        expense_deducted: payoutExpenseAmount(p),
       }))}
       payoutMembers={(payoutMembers ?? []).map((pm) => ({
         id: pm.id,
@@ -68,14 +119,27 @@ export default async function AdminPayoutsPage({
         amount: Number(pm.amount),
         tugas: pm.tugas ?? null,
       }))}
-      projects={(projects ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        total_value: Number(p.total_value),
-        client_name: p.client_name,
-      }))}
-      projectMembers={(projectMembers ?? []).map((pm: any) => ({
+      projects={(projects ?? []).map((p) => {
+        const operationalExpense = sumOperationalExpense(
+          expenseByProject.get(String(p.id)) ?? []
+        );
+        const allocatedExpense = sumAllocatedExpense(
+          payoutByProject.get(String(p.id)) ?? []
+        );
+        return {
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          total_value: Number(p.total_value),
+          client_name: p.client_name,
+          has_installments: projectsWithInstallments.has(String(p.id)),
+          unallocated_expense: Math.max(
+            0,
+            Math.round((operationalExpense - allocatedExpense) * 100) / 100
+          ),
+        };
+      })}
+      projectMembers={((projectMembers ?? []) as ProjectMemberRow[]).map((pm) => ({
         id: pm.id,
         project_id: pm.project_id,
         member_id: pm.member_id ?? null,
