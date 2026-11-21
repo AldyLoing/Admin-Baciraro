@@ -7,7 +7,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
-import { toast } from "@/lib/feedback";
+import { confirmDialog, toast } from "@/lib/feedback";
 import { cn } from "@/lib/utils";
 
 export type MyTaskStatus = "pending" | "active" | "completed";
@@ -33,14 +33,17 @@ type Tone = "late" | "today" | "soon" | "normal";
 function dueInfo(due: string | null, today: string | null, tomorrow: string | null): { text: string; tone: Tone } | null {
   if (!due) return null;
   const d = due.slice(0, 10);
-  if (today && d < today) return { text: `Terlambat · ${formatDate(d)}`, tone: "late" };
+  if (today && d < today) {
+    const days = Math.round((Date.parse(today) - Date.parse(d)) / 86400000);
+    return { text: `Lewat ${days} hari`, tone: "late" };
+  }
   if (today && d === today) return { text: "Hari ini", tone: "today" };
   if (tomorrow && d === tomorrow) return { text: "Besok", tone: "soon" };
   return { text: formatDate(d), tone: "normal" };
 }
 
 const dueClass: Record<Tone, string> = {
-  late: "bg-[#2e1414] text-bad px-2 py-0.5 rounded-full",
+  late: "text-bad",
   today: "bg-[#2b220c] text-warn px-2 py-0.5 rounded-full",
   soon: "text-ink-2",
   normal: "text-ink-3",
@@ -69,6 +72,8 @@ export default function MyTasksCard({ groups }: { groups: MyTaskGroup[] }) {
   const [tomorrow, setTomorrow] = useState<string | null>(null);
   useEffect(() => {
     const now = new Date();
+    // Sengaja di effect: tanggal browser baru diketahui setelah mount (hindari hydration mismatch).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setToday(isoLocal(now));
     setTomorrow(isoLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)));
   }, []);
@@ -119,6 +124,53 @@ export default function MyTasksCard({ groups }: { groups: MyTaskGroup[] }) {
   const total = view.reduce((s, v) => s + v.total, 0);
   const done = view.reduce((s, v) => s + v.done, 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
+  const lateTasks = today
+    ? groups.flatMap((g) =>
+        g.tasks.filter((t) => statusById[t.id] !== "completed" && t.dueDate && t.dueDate.slice(0, 10) < today)
+      )
+    : [];
+  const lateCount = lateTasks.length;
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  async function completeAllLate() {
+    if (bulkBusy || lateTasks.length === 0) return;
+    const ok = await confirmDialog({
+      title: `Tandai ${lateTasks.length} tugas selesai?`,
+      message: `${lateTasks.length} tugas yang sudah lewat tenggat akan ditandai selesai. Gunakan ini jika tugas-tugas tersebut sebenarnya sudah dikerjakan tetapi lupa dicentang.`,
+      confirmLabel: "Tandai selesai",
+    });
+    if (!ok) return;
+    setBulkBusy(true);
+    const ids = lateTasks.map((t) => t.id);
+    setBusy((b) => new Set([...b, ...ids]));
+    let failed = 0;
+    let firstError = "";
+    for (const id of ids) {
+      try {
+        const res = await fetch("/api/admin/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: "completed" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Gagal memperbarui tugas.");
+        setStatusById((st) => ({ ...st, [id]: "completed" }));
+      } catch (e) {
+        failed++;
+        if (!firstError) firstError = e instanceof Error ? e.message : "Gagal memperbarui tugas.";
+      }
+    }
+    setBusy((b) => {
+      const n = new Set(b);
+      ids.forEach((id) => n.delete(id));
+      return n;
+    });
+    setBulkBusy(false);
+    setLast(null);
+    if (failed === 0) toast.success(`${ids.length} tugas ditandai selesai.`);
+    else toast.error(`${ids.length - failed} berhasil, ${failed} gagal: ${firstError}`);
+    scheduleRefresh();
+  }
   const lastGroup = last ? view.find((v) => v.g.projectId === last.projectId) : null;
   const lastAllDone = !!lastGroup && lastGroup.done === lastGroup.total;
   const lastTask = last ? groups.flatMap((g) => g.tasks).find((t) => t.id === last.id) : null;
@@ -132,6 +184,14 @@ export default function MyTasksCard({ groups }: { groups: MyTaskGroup[] }) {
           </h2>
           <p className="text-[13px] text-ink-3">Centang tugas yang sudah selesai — progres project ikut berubah.</p>
         </div>
+        {lateCount > 0 && (
+          <div className="flex items-center gap-2">
+            <Badge tone="red">{lateCount} terlambat</Badge>
+            <Button variant="secondary" size="sm" onClick={completeAllLate} disabled={bulkBusy}>
+              {bulkBusy ? "Memproses…" : "Tandai semua selesai"}
+            </Button>
+          </div>
+        )}
         {total > 0 && (
           <div className="ml-auto flex min-w-[220px] flex-1 items-center gap-3 sm:max-w-xs sm:flex-none">
             <span className="whitespace-nowrap text-sm font-bold text-brand-ink">
@@ -195,13 +255,20 @@ export default function MyTasksCard({ groups }: { groups: MyTaskGroup[] }) {
                             busy.has(t.id) && "opacity-60"
                           )}
                         >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={busy.has(t.id)}
-                            onChange={(e) => change(t, g.projectId, e.target.checked)}
-                            className="h-5 w-5 shrink-0 cursor-pointer accent-brand"
-                          />
+                          <span className="relative flex h-5 w-5 shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={busy.has(t.id)}
+                              onChange={(e) => change(t, g.projectId, e.target.checked)}
+                              className="peer absolute inset-0 h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-[#52525b] bg-field transition checked:border-brand checked:bg-brand hover:border-brand-ink"
+                            />
+                            <Icon
+                              name="check"
+                              strokeWidth={3}
+                              className="pointer-events-none absolute inset-0 m-auto h-3 w-3 text-on-brand opacity-0 peer-checked:opacity-100"
+                            />
+                          </span>
                           <span
                             className={cn(
                               "min-w-0 flex-1 text-sm",
