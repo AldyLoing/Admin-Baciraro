@@ -35,13 +35,13 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#070707] px-4 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#D97A2B]/10 rounded-full blur-3xl -translate-y-32 translate-x-32" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand/10 rounded-full blur-3xl -translate-y-32 translate-x-32" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#C44A3A]/10 rounded-full blur-3xl translate-y-32 -translate-x-32" />
 
       <div className="w-full max-w-md relative z-10">
         <div className="bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#C44A3A] to-[#D97A2B] flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#C44A3A] to-brand flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="aldyloing atau email Anda"
-                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition"
+                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition"
               />
             </div>
             <div>
@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition"
+                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition"
               />
             </div>
 
@@ -83,7 +83,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-brand text-on-brand font-semibold hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Memproses..." : "Masuk"}
             </button>
@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
           <a
             href="/download/baciraro-admin.apk"
             download
-            className="mt-5 flex items-center justify-center gap-1.5 text-sm text-white/50 hover:text-[#E9A64E] transition"
+            className="mt-5 flex items-center justify-center gap-1.5 text-sm text-white/50 hover:text-brand-ink transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -101,7 +101,7 @@ export default function AdminLoginPage() {
           </a>
 
           <div className="mt-6 pt-6 border-t border-white/10">
-            <a href="/" className="text-sm text-white/50 hover:text-[#E9A64E] transition flex items-center justify-center gap-1">
+            <a href="/" className="text-sm text-white/50 hover:text-brand-ink transition flex items-center justify-center gap-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>

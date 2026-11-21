@@ -13,7 +13,7 @@ type OnboardingItem = {
 const STORAGE_KEY = "baciraro_onboarding";
 
 const defaultItems: Omit<OnboardingItem, "done">[] = [
-  { id: "account", label: "Buat Chart of Accounts", href: "/admin/chart-of-accounts" },
+  { id: "account", label: "Buat Chart of Accounts", href: "/admin/accounts" },
   { id: "project", label: "Buat Project Pertama", href: "/admin/projects/new" },
   { id: "transaction", label: "Catat Transaksi Pertama", href: "/admin/transactions" },
   { id: "journal", label: "Buat Jurnal Umum", href: "/admin/journal" },
@@ -83,20 +83,20 @@ export default function Onboarding() {
               <p className="text-xs text-white/50">Kamu sudah memahami semua fitur Baciraro OS.</p>
             </div>
           </div>
-          <button onClick={dismiss} className="text-white/30 hover:text-white text-xs">Tutup</button>
+          <button onClick={dismiss} className="text-white/55 hover:text-white text-xs">Tutup</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#151515] border border-white/10 rounded-xl p-5 mb-6">
+    <div className="bg-surface border border-white/10 rounded-xl p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-white">Mulai dari sini</h3>
-          <p className="text-xs text-white/40 mt-0.5">{completedCount}/{items.length} selesai</p>
+          <p className="text-xs text-white/55 mt-0.5">{completedCount}/{items.length} selesai</p>
         </div>
-        <button onClick={dismiss} className="text-white/30 hover:text-white text-xs">
+        <button onClick={dismiss} className="text-white/55 hover:text-white text-xs">
           Sembunyikan
         </button>
       </div>
@@ -104,7 +104,7 @@ export default function Onboarding() {
       {/* Progress bar */}
       <div className="h-1.5 bg-white/5 rounded-full mb-4 overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] rounded-full transition-all duration-300"
+          className="h-full bg-brand rounded-full transition-all duration-300"
           style={{ width: `${(completedCount / items.length) * 100}%` }}
         />
       </div>

@@ -3,11 +3,17 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { formatRupiah } from "@/lib/admin/format";
+import { cn } from "@/lib/utils";
 import DashboardCharts from "@/components/admin/DashboardCharts";
 import Onboarding from "@/components/admin/Onboarding";
+import MyTasksCard, { type MyTaskGroup } from "@/components/admin/MyTasksCard";
+import Card from "@/components/ui/Card";
+import Badge, { type BadgeTone } from "@/components/ui/Badge";
+import Icon, { type IconName } from "@/components/ui/Icon";
+import { buttonClass } from "@/components/ui/Button";
 
 type Project = {
-  id: string;
+  id: string | number;
   name: string;
   client_name: string | null;
   total_value: number;
@@ -55,14 +61,11 @@ type Props = {
   taskByAssignee: TaskAssigneeRow[];
   overdueTasks: AttentionItem[];
   pendingPayouts: AttentionItem[];
+  myTaskGroups: MyTaskGroup[];
 };
 
 const statusLabel: Record<string, string> = { active: "Aktif", completed: "Selesai", paid: "Dibayar" };
-const statusBadge: Record<string, string> = {
-  active: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-  completed: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-  paid: "bg-green-500/10 text-green-400 border border-green-500/20",
-};
+const statusTone: Record<string, BadgeTone> = { active: "blue", completed: "orange", paid: "green" };
 
 function relativeTime(dateStr: string): string {
   const now = new Date();
@@ -88,6 +91,49 @@ const rankBadge = [
   "bg-orange-600/15 text-orange-400 border border-orange-500/20",
 ];
 
+const RANGES = [
+  { key: "1m", label: "1 bln", months: 1 },
+  { key: "3m", label: "3 bln", months: 3 },
+  { key: "6m", label: "6 bln", months: 6 },
+] as const;
+type RangeKey = (typeof RANGES)[number]["key"] | "custom";
+
+const quickActions: { href: string; label: string; icon: IconName; color: string }[] = [
+  { href: "/admin/projects/new", label: "Project", icon: "folder", color: "text-brand-ink" },
+  { href: "/admin/transactions", label: "Pemasukan", icon: "plus", color: "text-ok" },
+  { href: "/admin/transactions", label: "Pengeluaran", icon: "minus", color: "text-bad" },
+  { href: "/admin/schedule", label: "Tugas", icon: "cal", color: "text-info" },
+  { href: "/admin/meetings", label: "Rapat", icon: "chat", color: "text-[#c4b5fd]" },
+  { href: "/admin/payouts", label: "Payout", icon: "coin", color: "text-warn" },
+];
+
+function Stat({
+  label,
+  value,
+  sub,
+  valueClass,
+  icon,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  valueClass?: string;
+  icon: IconName;
+}) {
+  return (
+    <Card className="flex flex-col gap-2.5 px-5 py-[18px]">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-medium text-ink-2">{label}</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-ink-2">
+          <Icon name={icon} className="h-4 w-4" strokeWidth={2} />
+        </span>
+      </div>
+      <span className={cn("text-[26px] font-bold leading-tight tracking-tight text-ink", valueClass)}>{value}</span>
+      <span className="text-[13px] text-ink-3">{sub}</span>
+    </Card>
+  );
+}
+
 export default function DashboardClient({
   firstName,
   allProjects,
@@ -110,13 +156,23 @@ export default function DashboardClient({
   taskByAssignee,
   overdueTasks,
   pendingPayouts,
+  myTaskGroups,
 }: Props) {
+  const [range, setRange] = useState<RangeKey>("6m");
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
-    d.setMonth(d.getMonth() - 6);
+    d.setMonth(d.getMonth() - 5);
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+
+  function pickRange(key: (typeof RANGES)[number]["key"], months: number) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (months - 1));
+    setDateFrom(d.toISOString().slice(0, 10));
+    setDateTo(new Date().toISOString().slice(0, 10));
+    setRange(key);
+  }
 
   const filteredMonthly = useMemo(() => {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -138,397 +194,314 @@ export default function DashboardClient({
 
   const recentProjects = allProjects.slice(0, 5);
   const topIncome = memberStats.length > 0 ? memberStats[0].totalIncome : 1;
+  const attentionCount = overdueTasks.length + pendingPayouts.length;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Onboarding */}
+    <div className="mx-auto max-w-6xl space-y-5">
       <Onboarding />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">
-            Halo, {firstName} 👋
-          </h1>
-          <p className="text-white/50 mt-1">
-            Ringkasan project, pendapatan, dan kas Baciraro.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-ink md:text-[28px]">Halo, {firstName}</h1>
+          <p className="mt-1 text-sm text-ink-2">Ringkasan project, kas, dan tugas Baciraro.</p>
         </div>
-        <Link
-          href="/admin/projects/new"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Tambah Project
-        </Link>
-      </div>
-
-      {/* Hari Ini: Quick Actions + Attention */}
-      <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        {/* Quick Actions */}
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
-          <h3 className="text-sm font-semibold text-white/70 mb-3">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/admin/projects/new" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
-              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              + Project
-            </Link>
-            <Link href="/admin/transactions" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              + Income
-            </Link>
-            <Link href="/admin/transactions" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
-              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-              + Expense
-            </Link>
-            <Link href="/admin/schedule" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition">
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              + Task
-            </Link>
-            <Link href="/admin/meetings" className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/80 hover:text-white transition col-span-2">
-              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              + Rapat
-            </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div role="group" aria-label="Rentang data grafik" className="flex rounded-[10px] border border-line bg-surface p-[3px]">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                aria-pressed={range === r.key}
+                onClick={() => pickRange(r.key, r.months)}
+                className={cn(
+                  "h-8 rounded-[7px] px-3 text-[13px] transition",
+                  range === r.key ? "bg-[#26262b] font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink"
+                )}
+              >
+                {r.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={range === "custom"}
+              onClick={() => setRange("custom")}
+              className={cn(
+                "h-8 rounded-[7px] px-3 text-[13px] transition",
+                range === "custom" ? "bg-[#26262b] font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink"
+              )}
+            >
+              Kustom
+            </button>
           </div>
-        </div>
-
-        {/* Perlu Perhatian */}
-        <div className="lg:col-span-2 bg-[#151515] rounded-xl border border-white/10 p-5">
-          <h3 className="text-sm font-semibold text-white/70 mb-3">Perlu Perhatian</h3>
-          {overdueTasks.length === 0 && pendingPayouts.length === 0 ? (
-            <p className="text-sm text-white/40 py-4 text-center">Tidak ada yang perlu diperhatian saat ini.</p>
-          ) : (
-            <div className="space-y-2">
-              {overdueTasks.map((t) => (
-                <div key={`task-${t.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
-                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                  <span className="text-sm text-white/80 flex-1">Tugas "{t.title}" terlambat</span>
-                  <span className="text-xs text-red-400 shrink-0">Overdue</span>
-                </div>
-              ))}
-              {pendingPayouts.map((p) => (
-                <div key={`payout-${p.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span className="text-sm text-white/80 flex-1">Payout "{p.project_name}" belum finalized</span>
-                  <span className="text-xs text-amber-400 shrink-0">Pending</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <Link href="/admin/transactions" className={buttonClass("secondary")}>
+            Catat transaksi
+          </Link>
+          <Link href="/admin/projects/new" className={buttonClass("primary")}>
+            <Icon name="plus" className="h-4 w-4" strokeWidth={2.4} />
+            Project baru
+          </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {/* Total Pendapatan */}
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Pendapatan</p>
-              <p className="text-2xl font-bold text-white mt-2">{formatRupiah(totalRevenue)}</p>
-              <p className="text-xs text-white/40 mt-1">{allProjects.length} total project</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
+      {range === "custom" && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+          <label className="flex items-center gap-2 text-[13px] text-ink-2">
+            Dari
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="rounded-lg border border-line-2 bg-field px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-[13px] text-ink-2">
+            Sampai
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="rounded-lg border border-line-2 bg-field px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <span className="text-xs text-ink-3">Grafik menampilkan data maksimal 6 bulan terakhir.</span>
         </div>
+      )}
 
-        {/* Kas Riil */}
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className={`absolute top-0 left-0 w-full h-1 ${kasRiil >= 0 ? "bg-gradient-to-r from-emerald-500 to-emerald-600" : "bg-gradient-to-r from-red-500 to-red-600"}`} />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Kas Riil</p>
-              <p className={`text-2xl font-bold mt-2 ${kasRiil >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                {formatRupiah(kasRiil)}
-              </p>
-              <p className="text-xs text-white/40 mt-1">pemasukan − pengeluaran</p>
-            </div>
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${kasRiil >= 0 ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-              <svg className={`w-5 h-5 ${kasRiil >= 0 ? "text-emerald-400" : "text-red-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            </div>
-          </div>
-        </div>
+      {/* Tugas saya: shortcut centang tugas selesai */}
+      <MyTasksCard groups={myTaskGroups} />
 
-        {/* Project Aktif */}
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Project Aktif</p>
-              <p className="text-2xl font-bold text-white mt-2">{activeCount}</p>
-              <p className="text-xs text-white/40 mt-1">sedang berjalan</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Selesai / Dibayar */}
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Selesai / Dibayar</p>
-              <p className="text-2xl font-bold text-emerald-400 mt-2">{completedCount}</p>
-              <p className="text-xs text-white/40 mt-1">{paidCount} sudah dibayar</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <Link href="/admin/payouts" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-[#E9A64E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Buat Payout
-        </Link>
-        <Link href="/admin/schedule" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Lihat Jadwal
-        </Link>
-        <Link href="/admin/transactions" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          Catat Transaksi
-        </Link>
-        <Link href="/admin/meetings" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Tambah Meeting
-        </Link>
-        <Link href="/admin/activity" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Log Aktivitas
-        </Link>
-        <Link href="/admin/journal" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          Jurnal Umum
-        </Link>
-        <Link href="/admin/bookkeeping" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white/70 hover:text-white hover:border-[#D97A2B]/40 hover:bg-[#D97A2B]/5 transition">
-          <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          Buku Besar
-        </Link>
-      </div>
-
-      {/* Charts */}
-      <div className="mb-8">
-        <DashboardCharts
-          monthly={filteredMonthly}
-          statusData={statusData}
-          expenseByKategori={expenseByKategori}
-          expenseColors={expenseColors}
-          incomeByClient={incomeByClient}
-          payoutByMember={payoutByMember}
-          taskByAssignee={taskByAssignee}
+      {/* Statistik */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stat label="Total pendapatan" value={formatRupiah(totalRevenue)} sub={`${allProjects.length} total project`} icon="trend" />
+        <Stat
+          label="Kas riil"
+          value={formatRupiah(kasRiil)}
+          sub="pemasukan − pengeluaran"
+          valueClass={kasRiil >= 0 ? "text-ok" : "text-bad"}
+          icon="wallet"
+        />
+        <Stat label="Project aktif" value={String(activeCount)} sub="sedang berjalan" icon="folder" />
+        <Stat
+          label="Selesai / dibayar"
+          value={String(completedCount)}
+          sub={`${paidCount} sudah dibayar`}
+          valueClass="text-ok"
+          icon="check"
         />
       </div>
 
-      {/* Accounting Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Link href="/admin/journal" className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-purple-500/30 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600" />
-          <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Jurnal Umum</p>
-          <p className="text-2xl font-bold text-white mt-2">{journalCount}</p>
-          <p className="text-xs text-white/40 mt-1">total entri jurnal</p>
-        </Link>
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600" />
-          <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Debit</p>
-          <p className="text-2xl font-bold text-blue-400 mt-2">{formatRupiah(totalJournalDebit)}</p>
-          <p className="text-xs text-white/40 mt-1">dari semua jurnal</p>
-        </div>
-        <div className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-white/20 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-violet-600" />
-          <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Kredit</p>
-          <p className="text-2xl font-bold text-violet-400 mt-2">{formatRupiah(totalJournalCredit)}</p>
-          <p className="text-xs text-white/40 mt-1">dari semua jurnal</p>
-        </div>
-        <Link href="/admin/accounts" className="relative bg-[#151515] rounded-xl border border-white/10 p-5 overflow-hidden group hover:border-amber-500/30 transition">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
-          <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Daftar Akun</p>
-          <p className="text-2xl font-bold text-white mt-2">{accountCount}</p>
-          <p className="text-xs text-white/40 mt-1">akun aktif</p>
-        </Link>
+      {/* Perlu perhatian + aksi cepat */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="mb-3 flex items-center gap-2.5">
+            <h2 className="text-base font-bold text-ink">Perlu perhatian</h2>
+            {attentionCount > 0 && <Badge tone="red">{attentionCount}</Badge>}
+          </div>
+          {attentionCount === 0 ? (
+            <p className="py-6 text-center text-sm text-ink-3">Tidak ada yang perlu diperhatikan saat ini.</p>
+          ) : (
+            <ul>
+              {overdueTasks.map((t) => (
+                <li key={`task-${t.id}`} className="flex items-center gap-3 border-t border-[#1f1f23] py-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2e1414] text-bad">
+                    <Icon name="alert" className="h-4 w-4" strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm text-ink">Tugas “{t.title}” terlambat</span>
+                  <Link href="/admin/schedule" className={buttonClass("secondary", "sm")}>
+                    Buka
+                  </Link>
+                </li>
+              ))}
+              {pendingPayouts.map((p) => (
+                <li key={`payout-${p.id}`} className="flex items-center gap-3 border-t border-[#1f1f23] py-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2b220c] text-warn">
+                    <Icon name="coin" className="h-4 w-4" strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm text-ink">Payout “{p.project_name}” belum difinalisasi</span>
+                  <Link href="/admin/payouts" className={buttonClass("secondary", "sm")}>
+                    Finalisasi
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-base font-bold text-ink">Aksi cepat</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {quickActions.map((a) => (
+              <Link
+                key={a.label}
+                href={a.href}
+                className="flex h-11 items-center gap-2.5 rounded-[10px] border border-line bg-surface-2 px-3 text-sm font-medium text-ink transition hover:border-line-2 hover:bg-white/[0.08]"
+              >
+                <span className={cn("flex", a.color)}>
+                  <Icon name={a.icon} className="h-4 w-4" strokeWidth={2} />
+                </span>
+                {a.label}
+              </Link>
+            ))}
+          </div>
+          <p className="mt-4 text-[13px] text-ink-3">
+            Tip: cari apa saja lewat kolom pencarian di bagian atas halaman.
+          </p>
+        </Card>
       </div>
 
-      {/* Balance Sheet Quick View */}
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Neraca Saldo (Ringkas)</h2>
-          <Link href="/admin/bookkeeping" className="text-sm text-[#E9A64E] hover:underline">Buku Besar →</Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-blue-500/5 rounded-lg p-4 border border-blue-500/10">
-            <p className="text-sm text-blue-400 font-medium">Aset (Kas)</p>
-            <p className="text-xl font-bold text-blue-400 mt-1">{formatRupiah(kasRiil)}</p>
-            <p className="text-xs text-white/40 mt-1">pemasukan − pengeluaran</p>
-          </div>
-          <div className="bg-emerald-500/5 rounded-lg p-4 border border-emerald-500/10">
-            <p className="text-sm text-emerald-400 font-medium">Total Pendapatan</p>
-            <p className="text-xl font-bold text-emerald-400 mt-1">{formatRupiah(totalJournalDebit)}</p>
-            <p className="text-xs text-white/40 mt-1">dari jurnal</p>
-          </div>
-          <div className="bg-purple-500/5 rounded-lg p-4 border border-purple-500/10">
-            <p className="text-sm text-purple-400 font-medium">Total Beban</p>
-            <p className="text-xl font-bold text-purple-400 mt-1">{formatRupiah(totalJournalCredit)}</p>
-            <p className="text-xs text-white/40 mt-1">dari jurnal</p>
-          </div>
-        </div>
-      </div>
+      {/* Grafik */}
+      <DashboardCharts
+        monthly={filteredMonthly}
+        statusData={statusData}
+        expenseByKategori={expenseByKategori}
+        expenseColors={expenseColors}
+        incomeByClient={incomeByClient}
+        payoutByMember={payoutByMember}
+        taskByAssignee={taskByAssignee}
+      />
 
-      {/* Date range filter (compact) */}
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-4 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <p className="text-sm font-medium text-white/70">Rentang Data:</p>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm focus:border-[#D97A2B] outline-none transition"
-          />
-          <span className="text-white/30">—</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm focus:border-[#D97A2B] outline-none transition"
-          />
+      {/* Ringkasan pembukuan */}
+      <Card>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-ink">Ringkasan pembukuan</h2>
+          <Link href="/admin/bookkeeping" className="text-[13px] font-semibold text-brand-ink hover:underline">
+            Buku Besar
+          </Link>
         </div>
-      </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-xl border border-line bg-surface-2 p-4">
+            <p className="text-[13px] font-medium text-ink-2">Aset (kas)</p>
+            <p className="mt-1.5 text-lg font-bold text-ink">{formatRupiah(kasRiil)}</p>
+            <p className="mt-1 text-xs text-ink-3">pemasukan − pengeluaran</p>
+          </div>
+          <div className="rounded-xl border border-line bg-surface-2 p-4">
+            <p className="text-[13px] font-medium text-ink-2">Total debit</p>
+            <p className="mt-1.5 text-lg font-bold text-info">{formatRupiah(totalJournalDebit)}</p>
+            <p className="mt-1 text-xs text-ink-3">dari semua jurnal</p>
+          </div>
+          <div className="rounded-xl border border-line bg-surface-2 p-4">
+            <p className="text-[13px] font-medium text-ink-2">Total kredit</p>
+            <p className="mt-1.5 text-lg font-bold text-[#c4b5fd]">{formatRupiah(totalJournalCredit)}</p>
+            <p className="mt-1 text-xs text-ink-3">dari semua jurnal</p>
+          </div>
+          <div className="rounded-xl border border-line bg-surface-2 p-4">
+            <p className="text-[13px] font-medium text-ink-2">Jurnal &amp; akun</p>
+            <p className="mt-1.5 text-lg font-bold text-ink">{journalCount} entri</p>
+            <p className="mt-1 text-xs text-ink-3">
+              <Link href="/admin/journal" className="font-semibold text-brand-ink hover:underline">
+                Jurnal umum
+              </Link>
+              {" · "}
+              <Link href="/admin/accounts" className="font-semibold text-brand-ink hover:underline">
+                {accountCount} akun
+              </Link>
+            </p>
+          </div>
+        </div>
+      </Card>
 
-      {/* Bottom sections */}
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Recent projects */}
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Project Terbaru</h2>
-            <Link href="/admin/projects" className="text-sm text-[#E9A64E] hover:underline">
-              Lihat semua →
+      {/* Bagian bawah */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-bold text-ink">Project terbaru</h2>
+            <Link href="/admin/projects" className="text-[13px] font-semibold text-brand-ink hover:underline">
+              Lihat semua
             </Link>
           </div>
           {recentProjects.length === 0 ? (
-            <div className="text-center py-10 text-white/40">
-              <svg className="w-12 h-12 mx-auto text-white/10 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+            <div className="py-10 text-center text-ink-3">
               <p className="text-sm">Belum ada project.</p>
-              <Link href="/admin/projects/new" className="text-[#E9A64E] text-sm hover:underline mt-2 inline-block">
+              <Link href="/admin/projects/new" className="mt-2 inline-block text-sm font-semibold text-brand-ink hover:underline">
                 + Tambah project pertama
               </Link>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {recentProjects.map((project) => (
                 <Link
                   key={project.id}
                   href={`/admin/projects/${project.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10 transition group"
+                  className="group flex items-center justify-between rounded-lg border border-transparent p-3 transition hover:border-line hover:bg-white/5"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm text-white truncate group-hover:text-[#E9A64E] transition">{project.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-white/40">{project.client_name || "Tanpa klien"}</span>
-                      <span className="text-white/20">·</span>
-                      <span className="text-xs text-white/30">{relativeTime(project.created_at)}</span>
-                    </div>
+                    <p className="truncate text-sm font-semibold text-ink group-hover:text-brand-ink">{project.name}</p>
+                    <p className="mt-1 text-xs text-ink-3">
+                      {project.client_name || "Tanpa klien"} · {relativeTime(project.created_at)}
+                    </p>
                   </div>
-                  <div className="text-right shrink-0 ml-4">
-                    <p className="font-semibold text-sm text-white">{formatRupiah(project.total_value)}</p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${statusBadge[project.status]}`}>
+                  <div className="ml-4 shrink-0 text-right">
+                    <p className="text-sm font-semibold text-ink">{formatRupiah(project.total_value)}</p>
+                    <Badge tone={statusTone[project.status] ?? "gray"} className="mt-1">
                       {statusLabel[project.status] ?? project.status}
-                    </span>
+                    </Badge>
                   </div>
                 </Link>
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
-        {/* Member ranking */}
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Pendapatan Anggota</h2>
-            <Link href="/admin/workload" className="text-sm text-[#E9A64E] hover:underline">
-              Workload →
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-bold text-ink">Pendapatan anggota</h2>
+            <Link href="/admin/workload" className="text-[13px] font-semibold text-brand-ink hover:underline">
+              Workload
             </Link>
           </div>
           {memberStats.length === 0 ? (
-            <div className="text-center py-10 text-white/40 text-sm">
-              Belum ada data anggota.
-            </div>
+            <div className="py-10 text-center text-sm text-ink-3">Belum ada data anggota.</div>
           ) : (
             <div className="space-y-3">
-              {memberStats.filter((m) => m.projectCount > 0).slice(0, 6).map((m, i) => {
-                const barWidth = topIncome > 0 ? Math.min(100, (m.totalIncome / topIncome) * 100) : 0;
-                return (
-                  <div key={m.id} className="group">
-                    <div className="flex items-center gap-3">
+              {memberStats
+                .filter((m) => m.projectCount > 0)
+                .slice(0, 6)
+                .map((m, i) => {
+                  const barWidth = topIncome > 0 ? Math.min(100, (m.totalIncome / topIncome) * 100) : 0;
+                  return (
+                    <div key={m.id} className="flex items-center gap-3">
                       {i < 3 ? (
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${rankBadge[i]}`}>
+                        <span
+                          className={cn(
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                            rankBadge[i]
+                          )}
+                        >
                           {i + 1}
                         </span>
                       ) : (
-                        <span className="w-6 text-center text-xs font-bold text-white/20 shrink-0">{i + 1}</span>
+                        <span className="w-6 shrink-0 text-center text-xs font-bold text-ink-3">{i + 1}</span>
                       )}
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#C44A3A]/30 to-[#D97A2B]/30 text-[#E9A64E] flex items-center justify-center text-xs font-semibold shrink-0 border border-white/5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-2 bg-surface-2 text-xs font-semibold text-brand-ink">
                         {m.photo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.photo_url} alt={m.name} className="w-full h-full rounded-full object-cover" />
+                          <img src={m.photo_url} alt={m.name} className="h-full w-full rounded-full object-cover" />
                         ) : (
                           m.name.slice(0, 2).toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-white truncate">{m.name}</p>
-                          <p className="text-sm font-semibold text-white shrink-0 ml-2">{formatRupiah(m.totalIncome)}</p>
+                          <p className="truncate text-sm font-medium text-ink">{m.name}</p>
+                          <p className="ml-2 shrink-0 text-sm font-semibold text-ink">{formatRupiah(m.totalIncome)}</p>
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div className="mt-1 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] transition-all duration-500"
+                              className={cn("h-full rounded-full transition-all duration-500", i === 0 ? "bg-brand" : "bg-zinc-600")}
                               style={{ width: `${barWidth}%` }}
                             />
                           </div>
-                          <span className="text-[10px] text-white/40 shrink-0">{m.projectCount} project</span>
+                          <span className="shrink-0 text-xs text-ink-3">{m.projectCount} project</span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

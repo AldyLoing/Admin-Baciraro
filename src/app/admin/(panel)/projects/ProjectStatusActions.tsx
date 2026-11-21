@@ -86,7 +86,7 @@ export default function ProjectStatusActions({ projectId, currentStatus, isAdmin
           </button>
         )}
       </div>
-      {updating && <span className="text-xs text-white/40">Menyimpan...</span>}
+      {updating && <span className="text-xs text-white/55">Menyimpan...</span>}
       {error && <span className="text-xs text-red-400">{error}</span>}
     </div>
   );

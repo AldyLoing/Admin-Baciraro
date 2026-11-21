@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { AdminAuthProvider } from "@/lib/admin-auth-context";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Baciraro Admin",
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111111",
+  themeColor: "#0e0e10",
 };
 
 export default function RootLayout({
@@ -32,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className="h-full antialiased">
+    <html lang="id" className={`${jakarta.variable} h-full font-sans antialiased`}>
       <body className="min-h-screen">
         <ServiceWorkerRegister />
         <AdminAuthProvider>{children}</AdminAuthProvider>

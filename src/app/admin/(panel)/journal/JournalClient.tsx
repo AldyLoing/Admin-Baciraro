@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { Fragment, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { formatRupiah, formatDate } from "@/lib/admin/format";
@@ -36,9 +37,9 @@ type Props = {
 };
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand outline-none transition";
 
 const PER_PAGE = 15;
 
@@ -163,7 +164,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
   }
 
   async function remove(id: number) {
-    if (!confirm("Batalkan jurnal ini? Sistem membuat entry pembalikan otomatis agar saldo bersih (data tetap tersimpan).")) return;
+    if (!(await confirmDialog("Batalkan jurnal ini? Sistem membuat entry pembalikan otomatis agar saldo bersih (data tetap tersimpan)."))) return;
     const res = await fetch("/api/admin/journal", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -255,7 +256,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
         <div className="flex gap-2">
           <button
             onClick={exportExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-[#151515] text-white/70 text-sm font-medium hover:bg-white/5 transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-surface text-white/70 text-sm font-medium hover:bg-white/5 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -265,7 +266,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
           {isAdmin && (
             <button
               onClick={() => (showForm ? setShowForm(false) : setShowForm(true))}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -277,22 +278,22 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Debit</p>
           <p className="text-xl font-bold text-blue-400 mt-1">{formatRupiah(totalDebit)}</p>
-          <p className="text-xs text-white/40 mt-1">{filtered.length} jurnal</p>
+          <p className="text-xs text-white/55 mt-1">{filtered.length} jurnal</p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Kredit</p>
           <p className="text-xl font-bold text-purple-400 mt-1">{formatRupiah(totalCredit)}</p>
-          <p className="text-xs text-white/40 mt-1">harus seimbang</p>
+          <p className="text-xs text-white/55 mt-1">harus seimbang</p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Selisih</p>
           <p className={`text-xl font-bold mt-1 ${Math.abs(totalDebit - totalCredit) < 0.01 ? "text-emerald-400" : "text-red-400"}`}>
             {formatRupiah(totalDebit - totalCredit)}
           </p>
-          <p className="text-xs text-white/40 mt-1">{Math.abs(totalDebit - totalCredit) < 0.01 ? "seimbang" : "tidak seimbang!"}</p>
+          <p className="text-xs text-white/55 mt-1">{Math.abs(totalDebit - totalCredit) < 0.01 ? "seimbang" : "tidak seimbang!"}</p>
         </div>
       </div>
 
@@ -304,7 +305,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
       )}
 
       {showForm && isAdmin && (
-        <form onSubmit={save} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+        <form onSubmit={save} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
           <h2 className="font-semibold text-white">Tambah Jurnal Baru</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -324,7 +325,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-white/70">Baris Jurnal *</label>
-              <button type="button" onClick={addLine} className="text-xs text-[#E9A64E] hover:underline">+ Tambah Baris</button>
+              <button type="button" onClick={addLine} className="text-xs text-brand-ink hover:underline">+ Tambah Baris</button>
             </div>
             <div className="space-y-2">
               {formLines.map((line, idx) => {
@@ -333,7 +334,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                 return (
                   <div key={idx} className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
                     <div className="col-span-2 sm:col-span-4">
-                      {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Akun</label>}
+                      {idx === 0 && <label className="block text-xs text-white/55 mb-1">Akun</label>}
                       <select value={line.account_code} onChange={(e) => updateLine(idx, "account_code", Number(e.target.value))} className={selectCls + " text-sm"}>
                         {accounts.map((a) => (
                           <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
@@ -341,16 +342,16 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                       </select>
                     </div>
                     <div className="col-span-1 sm:col-span-3">
-                      {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Debit</label>}
+                      {idx === 0 && <label className="block text-xs text-white/55 mb-1">Debit</label>}
                       <input type="number" min="0" step="100" value={line.debit || ""} onChange={(e) => updateLine(idx, "debit", Number(e.target.value))} placeholder="0" className={inputCls + " text-sm"} />
                     </div>
                     <div className="col-span-1 sm:col-span-3">
-                      {idx === 0 && <label className="block text-[11px] text-white/40 mb-1">Kredit</label>}
+                      {idx === 0 && <label className="block text-xs text-white/55 mb-1">Kredit</label>}
                       <input type="number" min="0" step="100" value={line.credit || ""} onChange={(e) => updateLine(idx, "credit", Number(e.target.value))} placeholder="0" className={inputCls + " text-sm"} />
                     </div>
                     <div className="col-span-2 flex items-end">
                       {formLines.length > 2 && (
-                        <button type="button" onClick={() => removeLine(idx)} className="p-2 text-white/30 hover:text-red-400 transition">
+                        <button type="button" onClick={() => removeLine(idx)} className="p-2 text-white/55 hover:text-red-400 transition">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
@@ -369,7 +370,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
 
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
-              className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2">
+              className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2">
               {saving && (
                 <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8v0a8 8 0 018 8" />
@@ -387,7 +388,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
         <select value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#151515] border border-white/10 text-white/60 focus:border-[#D97A2B] outline-none transition">
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-surface border border-white/10 text-white/60 focus:border-brand outline-none transition">
           <option value="all">Semua bulan</option>
           {months.map((m) => (
             <option key={m} value={m}>
@@ -396,7 +397,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
           ))}
         </select>
         <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#151515] border border-white/10 text-white/60 focus:border-[#D97A2B] outline-none transition">
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-surface border border-white/10 text-white/60 focus:border-brand outline-none transition">
           <option value="all">Semua akun</option>
           {accounts.map((a) => (
             <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
@@ -406,13 +407,13 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+        <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
           <p className="text-lg font-medium mb-1">Belum ada jurnal</p>
           <p className="text-sm">Catat transaksi double-entry di sini.</p>
         </div>
       ) : (
         <>
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -432,10 +433,10 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                       <td className="px-4 py-3 font-medium text-white">
                         {e.description}
                         {e.status === "void" && (
-                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 align-middle">DIBATALKAN</span>
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 align-middle">DIBATALKAN</span>
                         )}
                         {e.reference?.startsWith("VOID-") && e.status !== "void" && (
-                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/50 align-middle">Pembatalan</span>
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/50 align-middle">Pembatalan</span>
                         )}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-white/50 whitespace-nowrap">{e.reference || "-"}</td>
@@ -443,7 +444,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                       <td className="px-4 py-3 text-right font-semibold text-purple-400 whitespace-nowrap">{formatRupiah(e.total_credit)}</td>
                       {isAdmin && (
                         <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                          <button onClick={() => remove(e.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Batalkan jurnal">
+                          <button onClick={() => remove(e.id)} className="p-1.5 text-white/55 hover:text-red-400 transition" aria-label="Batalkan jurnal">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -460,7 +461,7 @@ export default function JournalClient({ entries, accounts, isAdmin }: Props) {
                               return (
                                 <div key={li} className="grid grid-cols-12 gap-2 text-xs">
                                   <div className="col-span-5 text-white/60">
-                                    <span className="font-mono text-white/40 mr-2">{line.account_code}</span>
+                                    <span className="font-mono text-white/55 mr-2">{line.account_code}</span>
                                     {acc?.name ?? "Unknown"}
                                   </div>
                                   <div className="col-span-3 text-right text-blue-400">

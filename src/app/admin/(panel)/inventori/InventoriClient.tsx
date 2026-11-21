@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import SearchInput from "@/components/ui/SearchInput";
@@ -206,11 +207,11 @@ function itemSums(item: ConsignmentItem) {
 }
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand outline-none transition";
 const primaryBtn =
-  "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition";
+  "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition";
 const ghostBtn =
   "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 text-white/70 text-sm font-medium hover:bg-white/5 transition";
 const labelCls = "block text-sm font-medium text-white/70 mb-1";
@@ -677,7 +678,7 @@ export default function InventoriClient({
 
   async function removeEvent(ev: ConsignmentEvent, item: ConsignmentItem) {
     const extra = ev.type === "retur" ? "\nStok akan dikurangi lagi (retur dibatalkan)." : "";
-    if (!confirm(`Hapus catatan ${eventTypeLabel[ev.type]} ${ev.qty} ${item.product_unit}?${extra}`)) return;
+    if (!(await confirmDialog(`Hapus catatan ${eventTypeLabel[ev.type]} ${ev.qty} ${item.product_unit}?${extra}`))) return;
     setError(null);
     try {
       await apiCall(`/api/admin/inventori/titipan/events?id=${ev.id}`, "DELETE", {});
@@ -772,7 +773,7 @@ export default function InventoriClient({
   }
 
   async function removeToko(t: Toko) {
-    if (!confirm(`Nonaktifkan toko "${t.name}"? Tidak bisa dipilih untuk titipan baru, tapi riwayat lama tetap tersimpan.`)) return;
+    if (!(await confirmDialog(`Nonaktifkan toko "${t.name}"? Tidak bisa dipilih untuk titipan baru, tapi riwayat lama tetap tersimpan.`))) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/toko", "DELETE", { id: t.id });
@@ -881,7 +882,7 @@ export default function InventoriClient({
   async function removeProduct(id: number) {
     const target = products.find((p) => p.id === id);
     const kind = target?.is_raw_material ? "bahan ini" : "barang ini";
-    if (!confirm(`Nonaktifkan ${kind}? Data tidak dihapus dan tetap bisa dilihat di riwayat.`)) return;
+    if (!(await confirmDialog(`Nonaktifkan ${kind}? Data tidak dihapus dan tetap bisa dilihat di riwayat.`))) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/products", "DELETE", { id });
@@ -949,7 +950,7 @@ export default function InventoriClient({
   }
 
   async function removeMovement(id: number) {
-    if (!confirm("Koreksi mutasi ini? Stok akan dikembalikan seperti semula dan mutasi asli ditandai void.")) return;
+    if (!(await confirmDialog("Koreksi mutasi ini? Stok akan dikembalikan seperti semula dan mutasi asli ditandai void."))) return;
     setError(null);
     try {
       await apiCall("/api/admin/inventori/movements", "DELETE", { id });
@@ -1074,7 +1075,7 @@ export default function InventoriClient({
   }
 
   async function removeSale(id: number) {
-    if (!confirm("Batalkan penjualan ini? Stok, kas, dan jurnal akan dikembalikan (data penjualan tetap tersimpan).")) return;
+    if (!(await confirmDialog("Batalkan penjualan ini? Stok, kas, dan jurnal akan dikembalikan (data penjualan tetap tersimpan)."))) return;
     setError(null);
     setSaving(true);
     try {
@@ -1401,7 +1402,7 @@ export default function InventoriClient({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 mb-6 bg-[#151515] border border-white/10 rounded-xl p-1.5 w-fit">
+      <div className="flex flex-wrap gap-1 mb-6 bg-surface border border-white/10 rounded-xl p-1.5 w-fit">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -1415,19 +1416,19 @@ export default function InventoriClient({
             }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               tab === t.key
-                ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white"
+                ? "bg-brand text-on-brand"
                 : "text-white/50 hover:text-white hover:bg-white/5"
             }`}
           >
             {t.label}
             {t.key === "barang" && lowStockBarang.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[11px]">{lowStockBarang.length}</span>
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs">{lowStockBarang.length}</span>
             )}
             {t.key === "bahan" && lowStockBahan.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[11px]">{lowStockBahan.length}</span>
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs">{lowStockBahan.length}</span>
             )}
             {t.key === "titipan" && titipanSummary.notaAktif > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 text-[11px]">{titipanSummary.notaAktif}</span>
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 text-xs">{titipanSummary.notaAktif}</span>
             )}
           </button>
         ))}
@@ -1446,7 +1447,7 @@ export default function InventoriClient({
       {(tab === "barang" || tab === "bahan") && (
         <>
           {showProductForm && isAdmin && (
-            <form onSubmit={saveProduct} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+            <form onSubmit={saveProduct} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
               <h2 className="font-semibold text-white">
                 {editingProduct
                   ? productForm.is_raw_material
@@ -1558,7 +1559,7 @@ export default function InventoriClient({
                       type="checkbox"
                       checked={productForm.is_active}
                       onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })}
-                      className="accent-[#D97A2B]"
+                      className="accent-brand"
                     />
                     {productForm.is_raw_material ? "Bahan aktif digunakan" : "Barang aktif dijual"}
                   </label>
@@ -1568,7 +1569,7 @@ export default function InventoriClient({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
                 >
                   {saving && (
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1606,7 +1607,7 @@ export default function InventoriClient({
                 </div>
               </div>
 
-              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+              <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -1626,7 +1627,7 @@ export default function InventoriClient({
                         <td className="px-4 py-3 font-mono text-white/60">{p.sku ?? "-"}</td>
                         <td className="px-4 py-3 font-medium text-white">
                           {p.name}
-                          {p.unit && <span className="text-white/30 font-normal"> / {p.unit}</span>}
+                          {p.unit && <span className="text-white/55 font-normal"> / {p.unit}</span>}
                         </td>
                         <td className="px-4 py-3 text-white/60">{p.category || "-"}</td>
                         <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>
@@ -1639,12 +1640,12 @@ export default function InventoriClient({
                           >
                             {formatNumber(p.stok)}
                           </span>
-                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-[11px] text-red-400">menipis</span>}
+                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-xs text-red-400">menipis</span>}
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/55"
                             }`}
                           >
                             {p.is_active ? "Aktif" : "Nonaktif"}
@@ -1656,7 +1657,7 @@ export default function InventoriClient({
                               setTab("mutasi");
                               openHistory(p);
                             }}
-                            className="p-1.5 text-white/30 hover:text-blue-400 transition"
+                            className="p-1.5 text-white/55 hover:text-blue-400 transition"
                             aria-label="Riwayat"
                             title="Riwayat barang"
                           >
@@ -1668,7 +1669,7 @@ export default function InventoriClient({
                             <>
                               <button
                                 onClick={() => openEditProduct(p)}
-                                className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                                className="p-1.5 text-white/55 hover:text-brand-ink transition"
                                 aria-label="Ubah"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1682,7 +1683,7 @@ export default function InventoriClient({
                               </button>
                               <button
                                 onClick={() => removeProduct(p.id)}
-                                className="p-1.5 text-white/30 hover:text-red-400 transition"
+                                className="p-1.5 text-white/55 hover:text-red-400 transition"
                                 aria-label="Nonaktifkan barang"
                                 title="Nonaktifkan barang"
                               >
@@ -1703,7 +1704,7 @@ export default function InventoriClient({
                   </tbody>
                 </table>
                 {filteredProducts.length === 0 && (
-                  <div className="p-16 text-center text-white/40">
+                  <div className="p-16 text-center text-white/55">
                     <p className="text-lg font-medium mb-1">Belum ada barang</p>
                     <p className="text-sm">Tambahkan ganci, asbak, coaster, dan merch lainnya.</p>
                   </div>
@@ -1723,7 +1724,7 @@ export default function InventoriClient({
                 />
               </div>
 
-              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+              <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -1742,7 +1743,7 @@ export default function InventoriClient({
                         <td className="px-4 py-3 font-mono text-white/60">{p.sku ?? "-"}</td>
                         <td className="px-4 py-3 font-medium text-white">
                           {p.name}
-                          {p.unit && <span className="text-white/30 font-normal"> / {p.unit}</span>}
+                          {p.unit && <span className="text-white/55 font-normal"> / {p.unit}</span>}
                         </td>
                         <td className="px-4 py-3 text-white/60">{p.category || "-"}</td>
                         <td className="px-4 py-3 text-right text-white/70">{formatRupiah(p.harga_modal)}</td>
@@ -1754,12 +1755,12 @@ export default function InventoriClient({
                           >
                             {formatNumber(p.stok)}
                           </span>
-                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-[11px] text-red-400">menipis</span>}
+                          {p.is_active && p.stok <= p.stok_min && <span className="ml-1.5 text-xs text-red-400">menipis</span>}
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              p.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/55"
                             }`}
                           >
                             {p.is_active ? "Aktif" : "Nonaktif"}
@@ -1771,7 +1772,7 @@ export default function InventoriClient({
                               setTab("mutasi");
                               openHistory(p);
                             }}
-                            className="p-1.5 text-white/30 hover:text-blue-400 transition"
+                            className="p-1.5 text-white/55 hover:text-blue-400 transition"
                             aria-label="Riwayat"
                             title="Riwayat bahan"
                           >
@@ -1783,7 +1784,7 @@ export default function InventoriClient({
                             <>
                               <button
                                 onClick={() => openEditProduct(p)}
-                                className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                                className="p-1.5 text-white/55 hover:text-brand-ink transition"
                                 aria-label="Ubah"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1797,7 +1798,7 @@ export default function InventoriClient({
                               </button>
                               <button
                                 onClick={() => removeProduct(p.id)}
-                                className="p-1.5 text-white/30 hover:text-red-400 transition"
+                                className="p-1.5 text-white/55 hover:text-red-400 transition"
                                 aria-label="Nonaktifkan bahan"
                                 title="Nonaktifkan bahan"
                               >
@@ -1818,7 +1819,7 @@ export default function InventoriClient({
                   </tbody>
                 </table>
                 {filteredBahan.length === 0 && (
-                  <div className="p-16 text-center text-white/40">
+                  <div className="p-16 text-center text-white/55">
                     <p className="text-lg font-medium mb-1">Belum ada bahan baku</p>
                     <p className="text-sm">Catat bahan seperti lem, tinta, resin, kain, dll.</p>
                   </div>
@@ -1833,7 +1834,7 @@ export default function InventoriClient({
       {tab === "mutasi" && (
         <>
           {showMovementForm && isAdmin && (
-            <form onSubmit={saveMovement} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+            <form onSubmit={saveMovement} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-white">
                   {movementForm.type === "in" ? "Barang Masuk" : "Barang Keluar"}
@@ -1921,7 +1922,7 @@ export default function InventoriClient({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60"
+                  className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60"
                 >
                   {saving ? "Menyimpan..." : "Simpan Mutasi"}
                 </button>
@@ -1958,7 +1959,7 @@ export default function InventoriClient({
             </div>
           </div>
 
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -1979,11 +1980,11 @@ export default function InventoriClient({
                     <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatDateTime(m.created_at)}</td>
                     <td className="px-4 py-3 font-medium text-white">
                       {m.product_name}
-                      <span className="text-white/30 font-normal"> ({m.product_sku ?? "-"})</span>
+                      <span className="text-white/55 font-normal"> ({m.product_sku ?? "-"})</span>
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                           m.type === "in" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                         }`}
                       >
@@ -1991,7 +1992,7 @@ export default function InventoriClient({
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${reasonColor[m.reason] ?? "bg-white/10 text-white/60"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${reasonColor[m.reason] ?? "bg-white/10 text-white/60"}`}>
                         {reasonLabel[m.reason] ?? m.reason}
                       </span>
                     </td>
@@ -2002,18 +2003,18 @@ export default function InventoriClient({
                     <td className="px-4 py-3 text-right text-white/60">{formatRupiah(m.qty * m.harga_modal)}</td>
                     <td className="px-4 py-3 text-white/70">
                       {m.recipient && <span className="text-white">{m.recipient}</span>}
-                      {m.recipient && m.note && <span className="text-white/30"> — </span>}
+                      {m.recipient && m.note && <span className="text-white/55"> — </span>}
                       {m.note}
-                      {!m.recipient && !m.note && <span className="text-white/30">-</span>}
-                      {m.sale_id && <span className="ml-1.5 text-[11px] text-white/30">(penjualan)</span>}
-                      {m.consignment_id && <span className="ml-1.5 text-[11px] text-white/30">(titipan)</span>}
+                      {!m.recipient && !m.note && <span className="text-white/55">-</span>}
+                      {m.sale_id && <span className="ml-1.5 text-xs text-white/55">(penjualan)</span>}
+                      {m.consignment_id && <span className="ml-1.5 text-xs text-white/55">(titipan)</span>}
                     </td>
                     <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.reference || "-"}</td>
                     <td className="px-4 py-3 text-right">
                       {isAdmin && !m.sale_id && !m.consignment_id && (
                         <button
                           onClick={() => removeMovement(m.id)}
-                          className="p-1.5 text-white/30 hover:text-red-400 transition"
+                          className="p-1.5 text-white/55 hover:text-red-400 transition"
                           aria-label="Koreksi mutasi"
                           title="Koreksi mutasi (stok dikembalikan)"
                         >
@@ -2033,7 +2034,7 @@ export default function InventoriClient({
               </tbody>
             </table>
             {filteredMovements.length === 0 && (
-              <div className="p-16 text-center text-white/40">
+              <div className="p-16 text-center text-white/55">
                 <p className="text-lg font-medium mb-1">Belum ada mutasi stok</p>
                 <p className="text-sm">Catat barang masuk (opname) atau barang keluar (terjual / gratis / rusak).</p>
               </div>
@@ -2046,7 +2047,7 @@ export default function InventoriClient({
       {tab === "penjualan" && (
         <>
           {showSaleForm && isAdmin && (
-            <form onSubmit={saveSale} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+            <form onSubmit={saveSale} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
               <h2 className="font-semibold text-white">Catat Penjualan</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -2123,7 +2124,7 @@ export default function InventoriClient({
                         <button
                           type="button"
                           onClick={() => setSaleItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev))}
-                          className="p-1 text-white/30 hover:text-red-400 transition"
+                          className="p-1 text-white/55 hover:text-red-400 transition"
                           aria-label="Hapus baris"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2139,7 +2140,7 @@ export default function InventoriClient({
                     </div>
                   );
                 })}
-                <button type="button" onClick={() => setSaleItems((prev) => [...prev, { product_id: "", qty: "", harga_jual: "" }])} className="text-sm text-[#E9A64E] hover:underline">
+                <button type="button" onClick={() => setSaleItems((prev) => [...prev, { product_id: "", qty: "", harga_jual: "" }])} className="text-sm text-brand-ink hover:underline">
                   + Tambah baris barang
                 </button>
               </div>
@@ -2147,7 +2148,7 @@ export default function InventoriClient({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-t border-white/10 pt-4">
                 <div className="text-white/60 text-sm">
                   Total: <span className="text-white text-lg font-bold">{formatRupiah(saleTotal)}</span>
-                  <span className="block text-xs text-white/40 mt-0.5">
+                  <span className="block text-xs text-white/55 mt-0.5">
                     Saat disimpan: stok berkurang + baris kas (INV) + jurnal pendapatan &amp; HPP otomatis.
                   </span>
                 </div>
@@ -2155,7 +2156,7 @@ export default function InventoriClient({
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
                   >
                     {saving && (
                       <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2178,17 +2179,17 @@ export default function InventoriClient({
           )}
 
           {shareSale && isAdmin && (
-            <div className="bg-[#151515] rounded-xl border border-[#D97A2B]/30 p-6 mb-6 space-y-4">
+            <div className="bg-surface rounded-xl border border-brand/30 p-6 mb-6 space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-semibold text-white">Bagi Hasil Penjualan</h2>
                   <p className="text-sm text-white/50 mt-0.5">
-                    <span className="font-mono text-[#E9A64E]">{shareSale.reference}</span>
+                    <span className="font-mono text-brand-ink">{shareSale.reference}</span>
                     {" · "}omzet {formatRupiah(shareSale.total)}
                     {shareSale.recipient ? ` · ke ${shareSale.recipient}` : ""}
                   </p>
                 </div>
-                <button type="button" onClick={closeShareForm} className="p-1.5 text-white/30 hover:text-white transition" aria-label="Tutup">
+                <button type="button" onClick={closeShareForm} className="p-1.5 text-white/55 hover:text-white transition" aria-label="Tutup">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2223,14 +2224,14 @@ export default function InventoriClient({
                               step="0.01"
                               value={fm.contribution_percent}
                               onChange={(e) => updateShareMemberPercent(fm.key, Number(e.target.value))}
-                              className="w-24 px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-right focus:border-[#D97A2B] outline-none transition"
+                              className="w-24 px-3 py-2 rounded-lg border border-white/10 bg-field text-white text-right focus:border-brand outline-none transition"
                             />
                             <span className="text-white/50 text-sm">%</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => removeShareMember(fm.key)}
-                            className="p-1.5 text-white/30 hover:text-red-400 transition"
+                            className="p-1.5 text-white/55 hover:text-red-400 transition"
                             aria-label="Hapus"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2243,11 +2244,11 @@ export default function InventoriClient({
                           value={fm.tugas}
                           onChange={(e) => updateShareMemberTugas(fm.key, e.target.value)}
                           placeholder="Tugas / peran (opsional)..."
-                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition"
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition"
                         />
                       </div>
                     ))}
-                    <div className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium bg-[#D97A2B]/10 text-[#E9A64E]">
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium bg-brand/10 text-brand-ink">
                       <span>Total kontribusi</span>
                       <span>
                         {shareTotalPercent.toFixed(2)}% {Math.round(shareTotalPercent) === 100 ? "✓" : "(harus 100%)"}
@@ -2271,7 +2272,7 @@ export default function InventoriClient({
                   <button
                     type="button"
                     onClick={addShareMember}
-                    className="px-4 py-2.5 rounded-lg border border-[#D97A2B]/40 text-[#E9A64E] text-sm font-medium hover:bg-[#D97A2B]/10 transition"
+                    className="px-4 py-2.5 rounded-lg border border-brand/40 text-brand-ink text-sm font-medium hover:bg-brand/10 transition"
                   >
                     Tambah
                   </button>
@@ -2288,7 +2289,7 @@ export default function InventoriClient({
                     </div>
                     <div>
                       <p className="text-xs text-white/50">Fee Baciraro ({KAS_PERCENT}%)</p>
-                      <p className="font-semibold text-[#E9A64E]">{formatRupiah(sharePreview.kasAmount)}</p>
+                      <p className="font-semibold text-brand-ink">{formatRupiah(sharePreview.kasAmount)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-white/50">Net untuk Member</p>
@@ -2305,7 +2306,7 @@ export default function InventoriClient({
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-white/30 mt-2">
+                  <p className="text-xs text-white/55 mt-2">
                     * Payout langsung terhitung (fee {KAS_PERCENT}% dipotong otomatis dari omzet) dan muncul di halaman Payouts.
                   </p>
                 </div>
@@ -2316,7 +2317,7 @@ export default function InventoriClient({
                   type="button"
                   onClick={saveShare}
                   disabled={sharing}
-                  className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
                 >
                   {sharing && (
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2348,25 +2349,25 @@ export default function InventoriClient({
 
           <div className="space-y-3">
             {filteredSales.map((s) => (
-              <div key={s.id} className="bg-[#151515] rounded-xl border border-white/10 p-4">
+              <div key={s.id} className="bg-surface rounded-xl border border-white/10 p-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-sm text-[#E9A64E]">{s.reference}</span>
+                      <span className="font-mono text-sm text-brand-ink">{s.reference}</span>
                       {s.status === "void" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400">DIBATALKAN</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400">DIBATALKAN</span>
                       )}
-                      <span className="text-white/40 text-xs">{s.date}</span>
+                      <span className="text-white/55 text-xs">{s.date}</span>
                       {s.transaction_ref && (
-                        <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[11px] font-mono">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-mono">
                           kas {s.transaction_ref}
                         </span>
                       )}
-                      {s.payment_note && <span className="text-white/40 text-xs">· {s.payment_note}</span>}
+                      {s.payment_note && <span className="text-white/55 text-xs">· {s.payment_note}</span>}
                       {s.payout && (
                         <a
                           href="/admin/payouts"
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${payoutStatusColor[s.payout.status] ?? "bg-white/5 text-white/50"}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${payoutStatusColor[s.payout.status] ?? "bg-white/5 text-white/50"}`}
                           title="Lihat di halaman Payouts"
                         >
                           Bagi hasil · {payoutStatusLabel[s.payout.status] ?? s.payout.status} · {formatRupiah(s.payout.net_amount)}
@@ -2386,7 +2387,7 @@ export default function InventoriClient({
                       <button
                         onClick={() => openShareForm(s)}
                         disabled={sharing}
-                        className="mt-1 text-xs text-[#E9A64E] hover:underline disabled:opacity-40"
+                        className="mt-1 text-xs text-brand-ink hover:underline disabled:opacity-40"
                       >
                         Bagi Hasil
                       </button>
@@ -2395,7 +2396,7 @@ export default function InventoriClient({
                       <button
                         onClick={() => removeSale(s.id)}
                         disabled={saving}
-                        className="mt-1 block ml-auto text-xs text-white/30 hover:text-red-400 transition disabled:opacity-40"
+                        className="mt-1 block ml-auto text-xs text-white/55 hover:text-red-400 transition disabled:opacity-40"
                       >
                         Hapus &amp; balikkan
                       </button>
@@ -2405,7 +2406,7 @@ export default function InventoriClient({
               </div>
             ))}
             {filteredSales.length === 0 && (
-              <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+              <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
                 <p className="text-lg font-medium mb-1">Belum ada penjualan</p>
                 <p className="text-sm">Catat penjualan — stok, kas, dan jurnal akan terisi otomatis.</p>
               </div>
@@ -2417,7 +2418,7 @@ export default function InventoriClient({
       {/* ================= TAB TITIPAN ================= */}
       {tab === "titipan" && (
         <>
-          <div className="flex gap-1 mb-4 bg-[#151515] border border-white/10 rounded-xl p-1.5 w-fit">
+          <div className="flex gap-1 mb-4 bg-surface border border-white/10 rounded-xl p-1.5 w-fit">
             {(["daftar", "toko"] as const).map((s) => (
               <button
                 key={s}
@@ -2441,7 +2442,7 @@ export default function InventoriClient({
           {titipSub === "daftar" && (
             <>
               {showTitipForm && isAdmin && (
-                <form onSubmit={saveTitip} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+                <form onSubmit={saveTitip} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="font-semibold text-white">Titip ke Toko</h2>
                     <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-400">
@@ -2544,7 +2545,7 @@ export default function InventoriClient({
                             <button
                               type="button"
                               onClick={() => setTitipItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev))}
-                              className="p-1 text-white/30 hover:text-red-400 transition"
+                              className="p-1 text-white/55 hover:text-red-400 transition"
                               aria-label="Hapus baris"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2563,7 +2564,7 @@ export default function InventoriClient({
                     <button
                       type="button"
                       onClick={() => setTitipItems((prev) => [...prev, { product_id: "", qty: "", harga_jual: "" }])}
-                      className="text-sm text-[#E9A64E] hover:underline"
+                      className="text-sm text-brand-ink hover:underline"
                     >
                       + Tambah baris barang
                     </button>
@@ -2572,7 +2573,7 @@ export default function InventoriClient({
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-t border-white/10 pt-4">
                     <div className="text-white/60 text-sm">
                       Total nilai titip: <span className="text-white text-lg font-bold">{formatRupiah(titipTotal)}</span>
-                      <span className="block text-xs text-white/40 mt-0.5">
+                      <span className="block text-xs text-white/55 mt-0.5">
                         Saat disimpan: stok berkurang. Penjualan &amp; retur dicatat menyusul dari toko.
                       </span>
                     </div>
@@ -2580,7 +2581,7 @@ export default function InventoriClient({
                       <button
                         type="submit"
                         disabled={saving}
-                        className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
+                        className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
                       >
                         {saving && (
                           <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2603,32 +2604,32 @@ export default function InventoriClient({
               )}
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                <div className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                <div className="bg-surface rounded-xl border border-white/10 p-4">
                   <div className="text-xs text-white/50 uppercase tracking-wide">Dititipkan</div>
                   <div className="text-xl font-bold text-white mt-1">{formatNumber(titipanSummary.dititip)}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">{titipanSummary.notaAktif} nota aktif</div>
+                  <div className="text-xs text-white/55 mt-0.5">{titipanSummary.notaAktif} nota aktif</div>
                 </div>
-                <div className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                <div className="bg-surface rounded-xl border border-white/10 p-4">
                   <div className="text-xs text-white/50 uppercase tracking-wide">Terjual</div>
                   <div className="text-xl font-bold text-emerald-400 mt-1">{formatNumber(titipanSummary.terjual)}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">laporan dari toko</div>
+                  <div className="text-xs text-white/55 mt-0.5">laporan dari toko</div>
                 </div>
-                <div className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                <div className="bg-surface rounded-xl border border-white/10 p-4">
                   <div className="text-xs text-white/50 uppercase tracking-wide">Retur</div>
                   <div className="text-xl font-bold text-teal-400 mt-1">{formatNumber(titipanSummary.retur)}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">kembali ke gudang</div>
+                  <div className="text-xs text-white/55 mt-0.5">kembali ke gudang</div>
                 </div>
-                <div className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                <div className="bg-surface rounded-xl border border-white/10 p-4">
                   <div className="text-xs text-white/50 uppercase tracking-wide">Susut</div>
                   <div className={`text-xl font-bold mt-1 ${titipanSummary.susut > 0 ? "text-red-400" : "text-white"}`}>
                     {formatNumber(titipanSummary.susut)}
                   </div>
-                  <div className="text-[11px] text-white/40 mt-0.5">hilang / rusak di toko</div>
+                  <div className="text-xs text-white/55 mt-0.5">hilang / rusak di toko</div>
                 </div>
-                <div className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                <div className="bg-surface rounded-xl border border-white/10 p-4">
                   <div className="text-xs text-white/50 uppercase tracking-wide">Sisa di Toko</div>
-                  <div className="text-xl font-bold text-[#E9A64E] mt-1">{formatNumber(titipanSummary.sisa)}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">{formatRupiah(titipanSummary.nilaiSisa)} (nilai modal)</div>
+                  <div className="text-xl font-bold text-brand-ink mt-1">{formatNumber(titipanSummary.sisa)}</div>
+                  <div className="text-xs text-white/55 mt-0.5">{formatRupiah(titipanSummary.nilaiSisa)} (nilai modal)</div>
                 </div>
               </div>
 
@@ -2664,25 +2665,25 @@ export default function InventoriClient({
                   const totalSisa = c.items.reduce((s, i) => s + itemSums(i).sisa, 0);
                   const isOpen = expandedTitip === c.id;
                   return (
-                    <div key={c.id} className="bg-[#151515] rounded-xl border border-white/10 p-4">
+                    <div key={c.id} className="bg-surface rounded-xl border border-white/10 p-4">
                       <button
                         onClick={() => setExpandedTitip(isOpen ? null : c.id)}
                         className="w-full text-left flex flex-col md:flex-row md:items-center gap-3"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-sm text-[#E9A64E]">{c.reference}</span>
+                            <span className="font-mono text-sm text-brand-ink">{c.reference}</span>
                             {c.status === "void" && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400">
                                 DIBATALKAN
                               </span>
                             )}
-                            <span className="text-white/40 text-xs">{c.date}</span>
-                            {c.note && <span className="text-white/40 text-xs">· {c.note}</span>}
+                            <span className="text-white/55 text-xs">{c.date}</span>
+                            {c.note && <span className="text-white/55 text-xs">· {c.note}</span>}
                           </div>
                           <div className="text-white mt-1 font-medium">
                             Toko: <span className="text-white/70 font-normal">{c.toko_name}</span>
-                            {c.toko_city && <span className="text-white/40 text-sm"> ({c.toko_city})</span>}
+                            {c.toko_city && <span className="text-white/55 text-sm"> ({c.toko_city})</span>}
                           </div>
                           <div className="text-white/50 text-sm mt-0.5">
                             {c.items.map((i) => `${i.qty}× ${i.product_name}`).join(", ")}
@@ -2697,11 +2698,11 @@ export default function InventoriClient({
                           </div>
                           <div className="text-sm text-white/60">
                             Sisa{" "}
-                            <span className={`font-semibold ${totalSisa > 0 ? "text-[#E9A64E]" : "text-emerald-400"}`}>
+                            <span className={`font-semibold ${totalSisa > 0 ? "text-brand-ink" : "text-emerald-400"}`}>
                               {formatNumber(totalSisa)}
                             </span>
                           </div>
-                          <div className="text-xs text-white/30 mt-0.5">{isOpen ? "Tutup detail" : "Buka detail"}</div>
+                          <div className="text-xs text-white/55 mt-0.5">{isOpen ? "Tutup detail" : "Buka detail"}</div>
                         </div>
                       </button>
 
@@ -2715,7 +2716,7 @@ export default function InventoriClient({
                                   <div>
                                     <div className="text-white font-medium">
                                       {it.product_name}
-                                      <span className="text-white/30 font-normal"> ({it.product_sku ?? "-"})</span>
+                                      <span className="text-white/55 font-normal"> ({it.product_sku ?? "-"})</span>
                                     </div>
                                     <div className="text-white/50 text-xs mt-0.5">
                                       Dititip {formatNumber(it.qty)} {it.product_unit} · {formatRupiah(it.harga_jual)}/pcs
@@ -2750,26 +2751,26 @@ export default function InventoriClient({
 
                                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3 text-center">
                                   <div className="rounded-lg bg-white/5 py-2">
-                                    <div className="text-[10px] text-white/40 uppercase">Dititip</div>
+                                    <div className="text-xs text-white/55 uppercase">Dititip</div>
                                     <div className="text-white font-semibold">{formatNumber(it.qty)}</div>
                                   </div>
                                   <div className="rounded-lg bg-white/5 py-2">
-                                    <div className="text-[10px] text-white/40 uppercase">Terjual</div>
+                                    <div className="text-xs text-white/55 uppercase">Terjual</div>
                                     <div className="text-emerald-400 font-semibold">{formatNumber(s.terjual)}</div>
                                   </div>
                                   <div className="rounded-lg bg-white/5 py-2">
-                                    <div className="text-[10px] text-white/40 uppercase">Retur</div>
+                                    <div className="text-xs text-white/55 uppercase">Retur</div>
                                     <div className="text-teal-400 font-semibold">{formatNumber(s.retur)}</div>
                                   </div>
                                   <div className="rounded-lg bg-white/5 py-2">
-                                    <div className="text-[10px] text-white/40 uppercase">Susut</div>
+                                    <div className="text-xs text-white/55 uppercase">Susut</div>
                                     <div className={`font-semibold ${s.susut > 0 ? "text-red-400" : "text-white/60"}`}>
                                       {formatNumber(s.susut)}
                                     </div>
                                   </div>
-                                  <div className="rounded-lg bg-[#D97A2B]/10 py-2">
-                                    <div className="text-[10px] text-white/40 uppercase">Sisa</div>
-                                    <div className={`font-bold ${s.sisa > 0 ? "text-[#E9A64E]" : "text-emerald-400"}`}>
+                                  <div className="rounded-lg bg-brand/10 py-2">
+                                    <div className="text-xs text-white/55 uppercase">Sisa</div>
+                                    <div className={`font-bold ${s.sisa > 0 ? "text-brand-ink" : "text-emerald-400"}`}>
                                       {formatNumber(s.sisa)}
                                     </div>
                                   </div>
@@ -2782,19 +2783,19 @@ export default function InventoriClient({
                                         key={ev.id}
                                         className="flex items-center gap-2 text-xs text-white/60 border-t border-white/5 pt-1.5"
                                       >
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${eventTypeColor[ev.type]}`}>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${eventTypeColor[ev.type]}`}>
                                           {eventTypeLabel[ev.type]}
                                         </span>
                                         <span className="text-white/80 font-medium">
                                           {formatNumber(ev.qty)} {it.product_unit}
                                         </span>
-                                        <span className="text-white/30">{ev.date}</span>
+                                        <span className="text-white/55">{ev.date}</span>
                                         {ev.note && <span className="truncate">{ev.note}</span>}
                                         <span className="flex-1" />
                                         {c.status === "active" && isAdmin && (
                                           <button
                                             onClick={() => removeEvent(ev, it)}
-                                            className="text-white/25 hover:text-red-400 transition"
+                                            className="text-white/55 hover:text-red-400 transition"
                                             aria-label="Hapus catatan"
                                             title="Hapus catatan (retur akan mengurangi stok lagi)"
                                           >
@@ -2821,7 +2822,7 @@ export default function InventoriClient({
                               <button
                                 onClick={() => voidTitip(c)}
                                 disabled={saving}
-                                className="text-xs text-white/30 hover:text-red-400 transition disabled:opacity-40"
+                                className="text-xs text-white/55 hover:text-red-400 transition disabled:opacity-40"
                               >
                                 Batalkan nota &amp; kembalikan stok
                               </button>
@@ -2833,7 +2834,7 @@ export default function InventoriClient({
                   );
                 })}
                 {filteredConsignments.length === 0 && (
-                  <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+                  <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
                     <p className="text-lg font-medium mb-1">Belum ada titipan</p>
                     <p className="text-sm">
                       Titip barang ke toko — stok berkurang, lalu catat terjual / retur saat toko melapor.
@@ -2847,7 +2848,7 @@ export default function InventoriClient({
           {titipSub === "toko" && (
             <>
               {showTokoForm && isAdmin && (
-                <form onSubmit={saveToko} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+                <form onSubmit={saveToko} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
                   <h2 className="font-semibold text-white">{editingToko ? "Ubah Toko" : "Tambah Toko"}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -2910,7 +2911,7 @@ export default function InventoriClient({
                           type="checkbox"
                           checked={tokoForm.is_active}
                           onChange={(e) => setTokoForm({ ...tokoForm, is_active: e.target.checked })}
-                          className="accent-[#D97A2B]"
+                          className="accent-brand"
                         />
                         Toko masih aktif menerima titipan
                       </label>
@@ -2920,7 +2921,7 @@ export default function InventoriClient({
                     <button
                       type="submit"
                       disabled={saving}
-                      className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
+                      className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 inline-flex items-center gap-2"
                     >
                       {saving && (
                         <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2952,7 +2953,7 @@ export default function InventoriClient({
                 </div>
               </div>
 
-              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+              <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -2973,20 +2974,20 @@ export default function InventoriClient({
                         <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="px-4 py-3 font-medium text-white">
                             {t.name}
-                            {t.notes && <div className="text-white/30 text-xs font-normal">{t.notes}</div>}
+                            {t.notes && <div className="text-white/55 text-xs font-normal">{t.notes}</div>}
                           </td>
                           <td className="px-4 py-3 text-white/60">
                             {t.contact_name || "-"}
-                            {t.phone && <div className="text-white/40 text-xs">{t.phone}</div>}
+                            {t.phone && <div className="text-white/55 text-xs">{t.phone}</div>}
                           </td>
                           <td className="px-4 py-3 text-white/60">{t.city || "-"}</td>
                           <td className="px-4 py-3 text-right text-white/80">{formatNumber(r?.dititip ?? 0)}</td>
                           <td className="px-4 py-3 text-right text-emerald-400">{formatNumber(r?.terjual ?? 0)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-[#E9A64E]">{formatNumber(r?.sisa ?? 0)}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-brand-ink">{formatNumber(r?.sisa ?? 0)}</td>
                           <td className="px-4 py-3">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                t.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                t.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/55"
                               }`}
                             >
                               {t.is_active ? "Aktif" : "Nonaktif"}
@@ -2997,7 +2998,7 @@ export default function InventoriClient({
                               <>
                                 <button
                                   onClick={() => openEditToko(t)}
-                                  className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                                  className="p-1.5 text-white/55 hover:text-brand-ink transition"
                                   aria-label="Ubah toko"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3012,7 +3013,7 @@ export default function InventoriClient({
                                 {t.is_active && (
                                   <button
                                     onClick={() => removeToko(t)}
-                                    className="p-1.5 text-white/30 hover:text-red-400 transition"
+                                    className="p-1.5 text-white/55 hover:text-red-400 transition"
                                     aria-label="Nonaktifkan toko"
                                     title="Nonaktifkan toko"
                                   >
@@ -3035,7 +3036,7 @@ export default function InventoriClient({
                   </tbody>
                 </table>
                 {tokos.length === 0 && (
-                  <div className="p-16 text-center text-white/40">
+                  <div className="p-16 text-center text-white/55">
                     <p className="text-lg font-medium mb-1">Belum ada toko</p>
                     <p className="text-sm">Tambahkan toko tempat barang dititipkan, lalu catat titipan ke sana.</p>
                   </div>
@@ -3057,7 +3058,7 @@ export default function InventoriClient({
                   </div>
                   <button
                     onClick={() => setEventForm(null)}
-                    className="p-2 text-white/40 hover:text-white transition"
+                    className="p-2 text-white/55 hover:text-white transition"
                     aria-label="Tutup"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3128,7 +3129,7 @@ export default function InventoriClient({
                     <button
                       type="submit"
                       disabled={saving}
-                      className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60"
+                      className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60"
                     >
                       {saving ? "Menyimpan..." : "Simpan Catatan"}
                     </button>
@@ -3151,26 +3152,26 @@ export default function InventoriClient({
       {tab === "laporan" && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+            <div className="bg-surface rounded-xl border border-white/10 p-5">
               <div className="text-xs text-white/50 uppercase tracking-wide">Nilai Persediaan</div>
               <div className="text-2xl font-bold text-white mt-2">{formatRupiah(valuation)}</div>
-              <div className="text-xs text-white/40 mt-1">Σ stok × harga modal</div>
+              <div className="text-xs text-white/55 mt-1">Σ stok × harga modal</div>
             </div>
-            <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+            <div className="bg-surface rounded-xl border border-white/10 p-5">
               <div className="text-xs text-white/50 uppercase tracking-wide">Barang Stok Menipis</div>
               <div className={`text-2xl font-bold mt-2 ${lowStock.length > 0 ? "text-red-400" : "text-emerald-400"}`}>
                 {lowStock.length}
               </div>
-              <div className="text-xs text-white/40 mt-1">barang di bawah / sama dengan stok minimum</div>
+              <div className="text-xs text-white/55 mt-1">barang di bawah / sama dengan stok minimum</div>
             </div>
-            <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+            <div className="bg-surface rounded-xl border border-white/10 p-5">
               <div className="text-xs text-white/50 uppercase tracking-wide">Total Penjualan</div>
               <div className="text-2xl font-bold text-white mt-2">{formatRupiah(sales.filter((x) => x.status !== "void").reduce((s, x) => s + x.total, 0))}</div>
-              <div className="text-xs text-white/40 mt-1">{sales.filter((x) => x.status !== "void").length} transaksi penjualan tercatat (dibatalkan tidak dihitung)</div>
+              <div className="text-xs text-white/55 mt-1">{sales.filter((x) => x.status !== "void").length} transaksi penjualan tercatat (dibatalkan tidak dihitung)</div>
             </div>
           </div>
 
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto mb-6">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto mb-6">
             <div className="px-4 py-3 border-b border-white/10 font-semibold text-white text-sm">
               Kartu Stok / Valuasi Persediaan
             </div>
@@ -3191,7 +3192,7 @@ export default function InventoriClient({
                     <td className="px-4 py-3 text-white font-medium">
                       {p.name}
                       {p.is_raw_material && (
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium">bahan</span>
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-xs font-medium">bahan</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-white/60">{p.unit}</td>
@@ -3205,7 +3206,7 @@ export default function InventoriClient({
                   <td colSpan={4} className="px-4 py-3 text-right text-white/60 font-semibold">
                     Total
                   </td>
-                  <td className="px-4 py-3 text-right text-[#E9A64E] font-bold">{formatRupiah(valuation)}</td>
+                  <td className="px-4 py-3 text-right text-brand-ink font-bold">{formatRupiah(valuation)}</td>
                   <td></td>
                 </tr>
               </tbody>
@@ -3213,10 +3214,10 @@ export default function InventoriClient({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+            <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
               <div className="px-4 py-3 border-b border-white/10 font-semibold text-white text-sm">Stok Menipis</div>
               {lowStock.length === 0 ? (
-                <div className="p-8 text-center text-white/40 text-sm">Semua stok aman.</div>
+                <div className="p-8 text-center text-white/55 text-sm">Semua stok aman.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -3239,10 +3240,10 @@ export default function InventoriClient({
               )}
             </div>
 
-            <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+            <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
               <div className="px-4 py-3 border-b border-white/10 font-semibold text-white text-sm">Rekap Penjualan per Barang</div>
               {soldRecap.length === 0 ? (
-                <div className="p-8 text-center text-white/40 text-sm">Belum ada penjualan tercatat.</div>
+                <div className="p-8 text-center text-white/55 text-sm">Belum ada penjualan tercatat.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -3268,15 +3269,15 @@ export default function InventoriClient({
             </div>
           </div>
 
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto mt-6">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto mt-6">
             <div className="px-4 py-3 border-b border-white/10 font-semibold text-white text-sm">
               Rekap Titipan per Toko
-              <span className="ml-2 text-white/40 font-normal text-xs">
+              <span className="ml-2 text-white/55 font-normal text-xs">
                 sisa = barang yang masih dititipkan dan belum laku / kembali
               </span>
             </div>
             {tokoRecap.length === 0 ? (
-              <div className="p-8 text-center text-white/40 text-sm">Belum ada titipan aktif ke toko mana pun.</div>
+              <div className="p-8 text-center text-white/55 text-sm">Belum ada titipan aktif ke toko mana pun.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -3297,10 +3298,10 @@ export default function InventoriClient({
                       <td className="px-4 py-3 text-right text-white/80">{formatNumber(t.dititip)}</td>
                       <td className="px-4 py-3 text-right text-emerald-400">{formatNumber(t.terjual)}</td>
                       <td className="px-4 py-3 text-right text-teal-400">{formatNumber(t.retur)}</td>
-                      <td className={`px-4 py-3 text-right ${t.susut > 0 ? "text-red-400" : "text-white/40"}`}>
+                      <td className={`px-4 py-3 text-right ${t.susut > 0 ? "text-red-400" : "text-white/55"}`}>
                         {formatNumber(t.susut)}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-[#E9A64E]">{formatNumber(t.sisa)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-brand-ink">{formatNumber(t.sisa)}</td>
                       <td className="px-4 py-3 text-right text-white/70">{formatRupiah(t.nilaiSisa)}</td>
                     </tr>
                   ))}
@@ -3318,10 +3319,10 @@ export default function InventoriClient({
                     <td className="px-4 py-3 text-right text-white/60 font-semibold">
                       {formatNumber(tokoRecap.reduce((s, t) => s + t.susut, 0))}
                     </td>
-                    <td className="px-4 py-3 text-right text-[#E9A64E] font-bold">
+                    <td className="px-4 py-3 text-right text-brand-ink font-bold">
                       {formatNumber(tokoRecap.reduce((s, t) => s + t.sisa, 0))}
                     </td>
-                    <td className="px-4 py-3 text-right text-[#E9A64E] font-bold">
+                    <td className="px-4 py-3 text-right text-brand-ink font-bold">
                       {formatRupiah(tokoRecap.reduce((s, t) => s + t.nilaiSisa, 0))}
                     </td>
                   </tr>
@@ -3338,14 +3339,14 @@ export default function InventoriClient({
               <div>
                 <h2 className="font-semibold text-white">
                   Riwayat Barang — {historyProduct.name}
-                  {historyProduct.sku && <span className="text-white/40 font-mono text-sm ml-2">{historyProduct.sku}</span>}
+                  {historyProduct.sku && <span className="text-white/55 font-mono text-sm ml-2">{historyProduct.sku}</span>}
                 </h2>
                 <p className="text-white/50 text-sm mt-0.5">
                   Stok saat ini: <span className="text-white font-semibold">{formatNumber(historyProduct.stok)}</span>{" "}
                   {historyProduct.unit} · Kartu stok (saldo berjalan)
                 </p>
               </div>
-              <button onClick={() => setHistoryProduct(null)} className="p-2 text-white/40 hover:text-white transition" aria-label="Tutup">
+              <button onClick={() => setHistoryProduct(null)} className="p-2 text-white/55 hover:text-white transition" aria-label="Tutup">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -3354,7 +3355,7 @@ export default function InventoriClient({
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               {historyLoading && <div className="text-white/50 text-sm">Memuat riwayat...</div>}
               {!historyLoading && historyRows.length === 0 && (
-                <div className="text-white/40 text-sm text-center py-8">Belum ada mutasi untuk barang ini.</div>
+                <div className="text-white/55 text-sm text-center py-8">Belum ada mutasi untuk barang ini.</div>
               )}
               {!historyLoading && historyRows.length > 0 && (
                 <div className="overflow-x-auto">
@@ -3374,7 +3375,7 @@ export default function InventoriClient({
                       <tr key={m.id} className="border-b border-white/5">
                         <td className="px-2 py-2 text-white/60 whitespace-nowrap">{formatDateTime(m.created_at)}</td>
                         <td className="px-2 py-2">
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${reasonColor[m.reason] ?? "bg-white/10 text-white/60"}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${reasonColor[m.reason] ?? "bg-white/10 text-white/60"}`}>
                             {reasonLabel[m.reason] ?? m.reason}
                           </span>
                         </td>
@@ -3383,7 +3384,7 @@ export default function InventoriClient({
                         <td className="px-2 py-2 text-right font-semibold text-white">{formatNumber(saldo)}</td>
                         <td className="px-2 py-2 text-white/60">
                           {m.recipient || m.note || "-"}
-                          {m.created_by_name && <span className="text-white/30 text-xs"> · {m.created_by_name}</span>}
+                          {m.created_by_name && <span className="text-white/55 text-xs"> · {m.created_by_name}</span>}
                         </td>
                       </tr>
                     ))}

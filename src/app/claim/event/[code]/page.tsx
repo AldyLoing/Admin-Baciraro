@@ -104,7 +104,7 @@ export default function EventClaimPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#0b0b0b] flex items-center justify-center text-white/60">
+      <main className="min-h-screen bg-canvas flex items-center justify-center text-white/60">
         Memuat...
       </main>
     );
@@ -112,7 +112,7 @@ export default function EventClaimPage() {
 
   if (notFound) {
     return (
-      <main className="min-h-screen bg-[#0b0b0b] flex flex-col items-center justify-center text-center text-white px-6">
+      <main className="min-h-screen bg-canvas flex flex-col items-center justify-center text-center text-white px-6">
         <h1 className="text-2xl font-bold">QR Tidak Ditemukan</h1>
         <p className="text-white/50 mt-2">Kode QR event ini tidak valid atau sudah tidak aktif.</p>
       </main>
@@ -122,33 +122,33 @@ export default function EventClaimPage() {
   const title = qr?.event_name || "Event Baciraro";
 
   return (
-    <main className="min-h-screen bg-[#0b0b0b] text-white">
+    <main className="min-h-screen bg-canvas text-white">
       <div className="max-w-md mx-auto px-6 py-12">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#C44A3A] to-[#D97A2B] flex items-center justify-center text-2xl font-bold mb-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#C44A3A] to-brand flex items-center justify-center text-2xl font-bold mb-4">
             B
           </div>
           <h1 className="text-xl font-bold">{title}</h1>
         </div>
 
         {claimed ? (
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#C44A3A] to-[#D97A2B] flex items-center justify-center mb-4">
+          <div className="bg-surface border border-white/10 rounded-2xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#C44A3A] to-brand flex items-center justify-center mb-4">
               <Coin className="w-8 h-8 text-white" />
             </div>
             <p className="text-3xl font-bold">+{claimed.points} koin</p>
             <p className="text-white/50 mt-1">Berhasil diklaim!</p>
-            <p className="text-white/40 text-sm mt-3">Total koin kamu: {claimed.total_points}</p>
+            <p className="text-white/55 text-sm mt-3">Total koin kamu: {claimed.total_points}</p>
           </div>
         ) : qr?.used ? (
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-8 text-center">
+          <div className="bg-surface border border-white/10 rounded-2xl p-8 text-center">
             <p className="text-lg font-semibold">QR Sudah Terpakai</p>
             <p className="text-white/50 mt-2 text-sm">QR koin ini hanya bisa digunakan sekali.</p>
           </div>
         ) : !customer ? (
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6">
+          <div className="bg-surface border border-white/10 rounded-2xl p-6">
             <p className="text-center text-white/70 mb-4">
-              Klaim <span className="font-bold text-[#D97A2B]">{qr?.event_points}</span> koin — login dulu untuk melanjutkan.
+              Klaim <span className="font-bold text-brand">{qr?.event_points}</span> koin — login dulu untuk melanjutkan.
             </p>
 
             <div className="flex gap-2 mb-5">
@@ -158,7 +158,7 @@ export default function EventClaimPage() {
                   onClick={() => { setMode(m); setAuthMsg(""); }}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                     mode === m
-                      ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white"
+                      ? "bg-brand text-on-brand"
                       : "bg-white/5 text-white/60 hover:text-white"
                   }`}
                 >
@@ -173,7 +173,7 @@ export default function EventClaimPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nama"
-                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#D97A2B] outline-none"
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-brand outline-none"
                   required
                 />
               )}
@@ -182,7 +182,7 @@ export default function EventClaimPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#D97A2B] outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-brand outline-none"
                 required
               />
               <input
@@ -190,35 +190,35 @@ export default function EventClaimPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#D97A2B] outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-brand outline-none"
                 required
               />
               {authMsg && <p className="text-red-400 text-sm">{authMsg}</p>}
               <button
                 type="submit"
                 disabled={authBusy}
-                className="w-full py-3 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] font-semibold disabled:opacity-50"
+                className="w-full py-3 rounded-lg bg-brand text-on-brand font-semibold disabled:opacity-50"
               >
                 {authBusy ? "Memproses..." : mode === "login" ? "Masuk" : "Daftar & Lanjut"}
               </button>
             </form>
-            <p className="text-white/30 text-xs text-center mt-4">
+            <p className="text-white/55 text-xs text-center mt-4">
               Akun Baciraro kamu bisa dipakai di sini.
             </p>
           </div>
         ) : (
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-8 text-center">
+          <div className="bg-surface border border-white/10 rounded-2xl p-8 text-center">
             <p className="text-white/50 text-sm">Halo, {customer.name}</p>
-            <p className="text-4xl font-bold my-3 text-[#D97A2B]">+{qr?.event_points} koin</p>
+            <p className="text-4xl font-bold my-3 text-brand">+{qr?.event_points} koin</p>
             <button
               onClick={handleClaim}
               disabled={claiming}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] font-semibold disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-brand text-on-brand font-semibold disabled:opacity-50"
             >
               {claiming ? "Memproses..." : "Klaim Koin"}
             </button>
             {claimError && <p className="text-red-400 text-sm mt-3">{claimError}</p>}
-            <button onClick={handleLogout} className="text-white/40 text-xs mt-4 hover:text-white/70">
+            <button onClick={handleLogout} className="text-white/55 text-xs mt-4 hover:text-white/70">
               Keluar
             </button>
           </div>

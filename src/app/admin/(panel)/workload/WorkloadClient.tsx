@@ -70,9 +70,9 @@ export default function WorkloadClient({ members, tasks, projectMembers }: Props
           const barWidth = Math.min((w.workloadScore / maxScore) * 100, 100);
           const displayWidth = Math.min(w.workloadScore, 100);
           return (
-            <div key={w.member.id} className="bg-[#151515] rounded-xl border border-white/10 p-6">
+            <div key={w.member.id} className="bg-surface rounded-xl border border-white/10 p-6">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#D97A2B]/20 text-[#E9A64E] flex items-center justify-center text-sm font-semibold shrink-0">
+                <div className="w-12 h-12 rounded-full bg-brand/20 text-brand-ink flex items-center justify-center text-sm font-semibold shrink-0">
                   {w.member.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -83,12 +83,12 @@ export default function WorkloadClient({ members, tasks, projectMembers }: Props
                   <p className={`text-2xl font-bold ${w.workloadScore < 40 ? "text-emerald-400" : w.workloadScore <= 70 ? "text-yellow-400" : "text-red-400"}`}>
                     {w.workloadScore}
                   </p>
-                  <p className="text-xs text-white/40">{getBarLabel(w.workloadScore)}</p>
+                  <p className="text-xs text-white/55">{getBarLabel(w.workloadScore)}</p>
                 </div>
               </div>
 
               <div className="mb-4">
-                <div className="flex items-center justify-between text-xs text-white/40 mb-1.5">
+                <div className="flex items-center justify-between text-xs text-white/55 mb-1.5">
                   <span>Workload</span>
                   <span>{w.workloadScore} / 100</span>
                 </div>
@@ -112,9 +112,9 @@ export default function WorkloadClient({ members, tasks, projectMembers }: Props
               </div>
 
               <div className="border-t border-white/5 pt-3">
-                <p className="text-xs text-white/40 mb-2">Project ({w.projectsCount})</p>
+                <p className="text-xs text-white/55 mb-2">Project ({w.projectsCount})</p>
                 {w.projectsCount === 0 ? (
-                  <p className="text-xs text-white/30">Belum terlibat di project</p>
+                  <p className="text-xs text-white/55">Belum terlibat di project</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {projectMembers

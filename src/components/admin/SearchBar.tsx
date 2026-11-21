@@ -164,7 +164,7 @@ export default function SearchBar() {
       <div ref={wrapperRef} className="relative mb-6 z-10">
         {/* Search input */}
         <div className="relative">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/55 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -186,22 +186,22 @@ export default function SearchBar() {
             }}
             onKeyDown={handleKeyDown}
             placeholder="Cari project, transaksi, anggota..."
-            className="w-full pl-12 pr-14 py-3 rounded-xl bg-[#151515] border border-white/10 text-white text-sm outline-none focus:border-white/30 transition placeholder:text-white/30"
+            className="w-full pl-12 pr-14 py-3 rounded-xl bg-surface border border-white/10 text-white text-sm outline-none focus:border-white/30 transition placeholder:text-white/55"
             aria-label="Cari"
           />
-          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-white/20 border border-white/10 rounded px-1.5 py-0.5 pointer-events-none">
+          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-white/55 border border-white/10 rounded px-1.5 py-0.5 pointer-events-none">
             ⌘K
           </kbd>
         </div>
 
         {/* Panel */}
         {showPanel && (
-          <div className="absolute left-0 right-0 top-full mt-2 bg-[#111111] rounded-xl border border-white/10 shadow-2xl overflow-hidden z-50">
+          <div className="absolute left-0 right-0 top-full mt-2 bg-surface rounded-xl border border-white/10 shadow-2xl overflow-hidden z-50">
             {/* Content */}
             <div className="max-h-[340px] overflow-y-auto p-2">
               {showQuick ? (
                 <div>
-                  <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                  <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/55">
                     Quick Actions
                   </p>
                   {quickActions.map((a, i) => (
@@ -225,17 +225,17 @@ export default function SearchBar() {
                   ))}
                 </div>
               ) : loading ? (
-                <p className="text-center py-8 text-white/40 text-sm">Mencari...</p>
+                <p className="text-center py-8 text-white/55 text-sm">Mencari...</p>
               ) : error ? (
                 <p className="text-center py-8 text-red-400 text-sm">Gagal mengambil data. Coba lagi.</p>
               ) : results.length === 0 ? (
-                <p className="text-center py-8 text-white/40 text-sm">
+                <p className="text-center py-8 text-white/55 text-sm">
                   Tidak ada hasil untuk &quot;{query}&quot;
                 </p>
               ) : (
                 Object.entries(grouped).map(([type, typeItems]) => (
                   <div key={type}>
-                    <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                    <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/55">
                       {typeLabels[type] || type}
                     </p>
                     {typeItems.map((item) => {
@@ -262,7 +262,7 @@ export default function SearchBar() {
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium">{item.label}</p>
-                            <p className="truncate text-xs text-white/40">{item.sub}</p>
+                            <p className="truncate text-xs text-white/55">{item.sub}</p>
                           </div>
                         </button>
                       );
@@ -273,7 +273,7 @@ export default function SearchBar() {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/10 text-[10px] text-white/30">
+            <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/10 text-xs text-white/55">
               <span>
                 <kbd className="border border-white/10 rounded px-1">↑↓</kbd> navigasi
               </span>

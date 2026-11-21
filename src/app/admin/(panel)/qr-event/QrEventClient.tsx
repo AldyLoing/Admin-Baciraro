@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog, toast } from "@/lib/feedback";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
@@ -69,7 +70,7 @@ export default function QrEventClient() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Cabut QR ini? QR tidak akan bisa diklaim lagi, tetapi tetap tersimpan di riwayat.")) return;
+    if (!(await confirmDialog("Cabut QR ini? QR tidak akan bisa diklaim lagi, tetapi tetap tersimpan di riwayat."))) return;
     const res = await fetch("/api/admin/event-qr", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -80,7 +81,7 @@ export default function QrEventClient() {
 
   const handleRefresh = async (id: number) => {
     const newPoints = refreshPoints.trim() ? Number(refreshPoints) : undefined;
-    if (!confirm("Buat QR baru dengan nama & poin yang sama? QR lama tetap tersimpan di riwayat.")) return;
+    if (!(await confirmDialog("Buat QR baru dengan nama & poin yang sama? QR lama tetap tersimpan di riwayat."))) return;
     setRefreshingId(id);
     const res = await fetch("/api/admin/event-qr", {
       method: "PATCH",
@@ -89,7 +90,7 @@ export default function QrEventClient() {
     });
     const data = await res.json();
     setRefreshingId(null);
-    if (!res.ok) { alert(data.error || "Gagal membuat QR baru."); return; }
+    if (!res.ok) { toast.error(data.error || "Gagal membuat QR baru."); return; }
     setRefreshPoints("");
     setPreview(data.qr);
     await load();
@@ -103,7 +104,7 @@ export default function QrEventClient() {
       </p>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-[#111111] border border-white/10 rounded-2xl p-6">
+        <div className="bg-surface border border-white/10 rounded-2xl p-6">
           <h2 className="font-semibold text-white mb-4">Generate QR Baru</h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
@@ -112,7 +113,7 @@ export default function QrEventClient() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="mis. Lokawaya 2026"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#D97A2B] outline-none text-white"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-brand outline-none text-white"
               />
             </div>
             <div>
@@ -121,26 +122,26 @@ export default function QrEventClient() {
                 type="number" min={1}
                 value={points}
                 onChange={(e) => setPoints(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#D97A2B] outline-none text-white"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-brand outline-none text-white"
                 required
               />
             </div>
             {createError && <p className="text-red-400 text-sm">{createError}</p>}
             <button
               type="submit" disabled={creating}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] font-semibold text-white disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-brand font-semibold text-on-brand disabled:opacity-50"
             >
               {creating ? "Membuat..." : "Generate QR"}
             </button>
           </form>
         </div>
 
-        <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[200px]">
+        <div className="bg-surface border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[200px]">
           {preview ? (
             <>
               <QrImage value={preview.claim_url} />
               <p className="text-white font-semibold mt-4">{preview.event_name || "Baciraro Event"}</p>
-              <p className="text-[#D97A2B] text-2xl font-bold">+{preview.event_points} koin</p>
+              <p className="text-brand text-2xl font-bold">+{preview.event_points} koin</p>
               <p className={`text-xs mt-1 ${preview.used ? "text-red-400" : "text-emerald-400"}`}>
                 {preview.used
                   ? `Terpakai${preview.claimed_by ? ` oleh ${preview.claimed_by.name}` : ""}`
@@ -157,7 +158,7 @@ export default function QrEventClient() {
                   value={refreshPoints}
                   onChange={(e) => setRefreshPoints(e.target.value)}
                   placeholder="Poin baru?"
-                  className="w-24 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/30 focus:border-[#D97A2B] outline-none"
+                  className="w-24 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/55 focus:border-brand outline-none"
                 />
                 <button
                   onClick={() => handleRefresh(preview.id)}
@@ -166,10 +167,10 @@ export default function QrEventClient() {
                   {refreshingId === preview.id ? "..." : "Refresh"}
                 </button>
               </div>
-              <p className="text-white/40 text-xs mt-3 text-center break-all">{preview.claim_url}</p>
+              <p className="text-white/55 text-xs mt-3 text-center break-all">{preview.claim_url}</p>
             </>
           ) : (
-            <p className="text-white/40 text-sm text-center">
+            <p className="text-white/55 text-sm text-center">
               QR yang baru dibuat akan tampil di sini untuk diprint &amp; dipajang.
             </p>
           )}
@@ -179,19 +180,19 @@ export default function QrEventClient() {
       <div className="mt-10">
         <h2 className="font-semibold text-white mb-4">Riwayat QR Event</h2>
         {loading ? (
-          <p className="text-white/40 text-sm">Memuat...</p>
+          <p className="text-white/55 text-sm">Memuat...</p>
         ) : qrs.length === 0 ? (
-          <p className="text-white/40 text-sm">Belum ada QR event.</p>
+          <p className="text-white/55 text-sm">Belum ada QR event.</p>
         ) : (
           <div className="grid gap-3">
             {qrs.map((qr) => (
-              <div key={qr.id} className="bg-[#111111] border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
+              <div key={qr.id} className="bg-surface border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-white font-medium truncate">{qr.event_name || "Baciraro Event"}</p>
-                  <p className="text-[#D97A2B] font-bold">+{qr.event_points} koin</p>
-                  <p className="text-xs text-white/40 mt-1">
+                  <p className="text-brand font-bold">+{qr.event_points} koin</p>
+                  <p className="text-xs text-white/55 mt-1">
                     {qr.revoked_at ? (
-                      <span className="text-white/40">Dicabut</span>
+                      <span className="text-white/55">Dicabut</span>
                     ) : qr.used ? (
                       <span className="text-red-400">Terpakai{qr.claimed_by ? ` oleh ${qr.claimed_by.name}` : ""}</span>
                     ) : (

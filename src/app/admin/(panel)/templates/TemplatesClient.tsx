@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { useState } from "react";
 import { formatDate } from "@/lib/admin/format";
 
@@ -40,9 +41,9 @@ const emptyForm = {
 };
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand outline-none transition";
 
 export default function TemplatesClient({ templates: initial, members, isAdmin }: Props) {
   const [templates, setTemplates] = useState<Template[]>(initial);
@@ -178,7 +179,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
   }
 
   async function removeTemplate(id: string) {
-    if (!confirm("Nonaktifkan template ini? Template tidak akan muncul di form proyek baru.")) return;
+    if (!(await confirmDialog("Nonaktifkan template ini? Template tidak akan muncul di form proyek baru."))) return;
     const res = await fetch("/api/admin/project-templates", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -205,7 +206,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
         {isAdmin && (
           <button
             onClick={() => (showForm ? setShowForm(false) : openCreate())}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -223,7 +224,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
       )}
 
       {showForm && isAdmin && (
-        <form onSubmit={save} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+        <form onSubmit={save} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
           <h2 className="font-semibold text-white">{editingId ? "Ubah Template" : "Buat Template Baru"}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,13 +256,13 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
               <button
                 type="button"
                 onClick={addMemberRow}
-                className="text-xs text-[#D97A2B] hover:underline font-medium"
+                className="text-xs text-brand hover:underline font-medium"
               >
                 + Tambah Anggota
               </button>
             </div>
             {form.default_members.length === 0 && (
-              <p className="text-xs text-white/40 mb-2">Belum ada anggota default.</p>
+              <p className="text-xs text-white/55 mb-2">Belum ada anggota default.</p>
             )}
             <div className="space-y-2">
               {form.default_members.map((m, i) => (
@@ -293,12 +294,12 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
                       placeholder="%"
                       className={inputCls + " text-sm pr-6"}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 text-sm">%</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeMemberRow(i)}
-                    className="p-1.5 text-white/30 hover:text-red-400 transition"
+                    className="p-1.5 text-white/55 hover:text-red-400 transition"
                     aria-label="Hapus"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -316,13 +317,13 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
               <button
                 type="button"
                 onClick={addTaskRow}
-                className="text-xs text-[#D97A2B] hover:underline font-medium"
+                className="text-xs text-brand hover:underline font-medium"
               >
                 + Tambah Tugas
               </button>
             </div>
             {form.default_tasks.length === 0 && (
-              <p className="text-xs text-white/40 mb-2">Belum ada tugas default.</p>
+              <p className="text-xs text-white/55 mb-2">Belum ada tugas default.</p>
             )}
             <div className="space-y-2">
               {form.default_tasks.map((t, i) => (
@@ -352,12 +353,12 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
                       placeholder="Hari"
                       className={inputCls + " text-sm pr-10"}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">hari</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 text-xs">hari</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeTaskRow(i)}
-                    className="p-1.5 text-white/30 hover:text-red-400 transition"
+                    className="p-1.5 text-white/55 hover:text-red-400 transition"
                     aria-label="Hapus"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -373,7 +374,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {saving && (
                 <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,12 +395,12 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
       )}
 
       {templates.length === 0 ? (
-        <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+        <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
           <p className="text-lg font-medium mb-1">Belum ada template</p>
           <p className="text-sm">Buat template project untuk mempercepat pembuatan project baru.</p>
         </div>
       ) : (
-        <div className="bg-[#151515] rounded-xl border border-white/10 overflow-hidden">
+        <div className="bg-surface rounded-xl border border-white/10 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -420,7 +421,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
                     </td>
                     <td className="px-5 py-4 text-white/50 max-w-xs truncate">{t.description || "-"}</td>
                     <td className="px-5 py-4 text-center">
-                      <span className="inline-block px-2.5 py-1 rounded-full bg-[#D97A2B]/10 text-orange-400 text-xs font-medium">
+                      <span className="inline-block px-2.5 py-1 rounded-full bg-brand/10 text-orange-400 text-xs font-medium">
                         {t.default_members.length} anggota
                       </span>
                     </td>
@@ -435,7 +436,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
                         <div className="inline-flex items-center gap-2">
                           <button
                             onClick={() => openEdit(t)}
-                            className="p-1.5 text-white/30 hover:text-[#E9A64E] transition"
+                            className="p-1.5 text-white/55 hover:text-brand-ink transition"
                             aria-label="Ubah"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,7 +445,7 @@ export default function TemplatesClient({ templates: initial, members, isAdmin }
                           </button>
                           <button
                             onClick={() => removeTemplate(t.id)}
-                            className="p-1.5 text-white/30 hover:text-red-400 transition"
+                            className="p-1.5 text-white/55 hover:text-red-400 transition"
                             aria-label="Nonaktifkan template"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

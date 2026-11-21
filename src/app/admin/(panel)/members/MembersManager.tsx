@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -34,9 +35,9 @@ const emptyForm = {
 };
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand outline-none transition";
 
 const divisionOptions = ["business", "technology", "operations", "technical"];
 
@@ -123,7 +124,7 @@ export default function MembersManager({ members, isAdmin }: Props) {
   }
 
   async function remove(m: Member) {
-    if (!confirm(`Nonaktifkan anggota "${m.name}"? Anggota tidak bisa login lagi; data project & tugas tetap tersimpan.`)) return;
+    if (!(await confirmDialog(`Nonaktifkan anggota "${m.name}"? Anggota tidak bisa login lagi; data project & tugas tetap tersimpan.`))) return;
     const res = await fetch("/api/admin/members", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -146,7 +147,7 @@ export default function MembersManager({ members, isAdmin }: Props) {
         </div>
         <button
           onClick={() => (showForm ? setShowForm(false) : openCreate())}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -163,7 +164,7 @@ export default function MembersManager({ members, isAdmin }: Props) {
       )}
 
       {showForm && (
-        <form onSubmit={save} className="mt-4 bg-[#151515] rounded-xl border border-white/10 p-6 space-y-4">
+        <form onSubmit={save} className="mt-4 bg-surface rounded-xl border border-white/10 p-6 space-y-4">
           <h3 className="font-semibold text-white">{editing ? `Ubah: ${editing.name}` : "Tambah Anggota Baru"}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -227,12 +228,12 @@ export default function MembersManager({ members, isAdmin }: Props) {
           </div>
           <label className="flex items-center gap-2 text-sm text-white/70">
             <input type="checkbox" checked={form.is_admin} onChange={(e) => setForm({ ...form, is_admin: e.target.checked })}
-              className="w-4 h-4 accent-[#D97A2B]" />
+              className="w-4 h-4 accent-brand" />
             Beri akses admin
           </label>
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
-              className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2">
+              className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2">
               {saving && (
                 <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8v0a8 8 0 018 8" />
@@ -250,12 +251,12 @@ export default function MembersManager({ members, isAdmin }: Props) {
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
         {members.map((m) => (
-          <div key={m.id} className="bg-[#151515] rounded-xl border border-white/10 px-4 py-3 flex items-center gap-3">
+          <div key={m.id} className="bg-surface rounded-xl border border-white/10 px-4 py-3 flex items-center gap-3">
             {m.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={m.photo_url} alt={m.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-[#D97A2B]/20 text-[#E9A64E] flex items-center justify-center text-xs font-semibold shrink-0">
+              <div className="w-9 h-9 rounded-full bg-brand/20 text-brand-ink flex items-center justify-center text-xs font-semibold shrink-0">
                 {m.name.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -263,23 +264,23 @@ export default function MembersManager({ members, isAdmin }: Props) {
               <p className="text-sm font-medium text-white truncate">
                 {m.name}
                 {m.status === "inactive" && (
-                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-medium">NONAKTIF</span>
+                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-medium">NONAKTIF</span>
                 )}
               </p>
               <p className="text-xs text-white/50 truncate">
                 {m.role}{m.division ? ` · ${m.division}` : ""}{m.is_admin ? " · Admin" : ""}
               </p>
               {m.username && (
-                <p className="text-[11px] text-white/35 truncate">@{m.username}</p>
+                <p className="text-xs text-white/55 truncate">@{m.username}</p>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => openEdit(m)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Ubah">
+              <button onClick={() => openEdit(m)} className="p-1.5 text-white/55 hover:text-brand-ink transition" aria-label="Ubah">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
-              <button onClick={() => remove(m)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Nonaktifkan anggota">
+              <button onClick={() => remove(m)} className="p-1.5 text-white/55 hover:text-red-400 transition" aria-label="Nonaktifkan anggota">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>

@@ -75,7 +75,7 @@ export default function SavedViews({ page, currentFilters, onLoad }: Props) {
           </button>
           <button
             onClick={() => remove(v.id)}
-            className="text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
+            className="text-white/55 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -95,19 +95,19 @@ export default function SavedViews({ page, currentFilters, onLoad }: Props) {
               if (e.key === "Escape") setShowInput(false);
             }}
             placeholder="Nama view..."
-            className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white outline-none w-32 placeholder:text-white/30"
+            className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white outline-none w-32 placeholder:text-white/55"
           />
           <button onClick={save} className="text-emerald-400 hover:text-emerald-300 text-xs">
             Simpan
           </button>
-          <button onClick={() => setShowInput(false)} className="text-white/40 hover:text-white text-xs">
+          <button onClick={() => setShowInput(false)} className="text-white/55 hover:text-white text-xs">
             Batal
           </button>
         </div>
       ) : (
         <button
           onClick={() => setShowInput(true)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-white/10 text-xs text-white/40 hover:text-white/70 hover:border-white/20 transition"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-white/10 text-xs text-white/55 hover:text-white/70 hover:border-white/20 transition"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

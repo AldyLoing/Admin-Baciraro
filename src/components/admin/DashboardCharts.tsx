@@ -43,16 +43,16 @@ function ExpenseList({ data, colors }: { data: KategoriRow[]; colors: string[] }
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) {
     return (
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+      <div className="bg-surface rounded-xl border border-white/10 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Expense by Kategori</h2>
-        <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+        <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
           Belum ada data expense.
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+    <div className="bg-surface rounded-xl border border-white/10 p-6">
       <h2 className="text-lg font-semibold text-white mb-4">Expense by Kategori</h2>
       <div className="max-h-[260px] overflow-y-auto pr-1 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
         {data.map((d, i) => (
@@ -76,16 +76,16 @@ function ExpenseList({ data, colors }: { data: KategoriRow[]; colors: string[] }
 function IncomeByClientChart({ data }: { data: ClientRow[] }) {
   if (data.length === 0) {
     return (
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+      <div className="bg-surface rounded-xl border border-white/10 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Income by Client</h2>
-        <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+        <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
           Belum ada data income.
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+    <div className="bg-surface rounded-xl border border-white/10 p-6">
       <h2 className="text-lg font-semibold text-white mb-4">Income by Client</h2>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} layout="vertical" margin={{ left: 10 }}>
@@ -102,16 +102,16 @@ function IncomeByClientChart({ data }: { data: ClientRow[] }) {
 function PayoutByMemberChart({ data }: { data: MemberPayoutRow[] }) {
   if (data.length === 0) {
     return (
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+      <div className="bg-surface rounded-xl border border-white/10 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Payout by Member</h2>
-        <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+        <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
           Belum ada data payout.
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+    <div className="bg-surface rounded-xl border border-white/10 p-6">
       <h2 className="text-lg font-semibold text-white mb-4">Payout by Member</h2>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data}>
@@ -128,16 +128,16 @@ function PayoutByMemberChart({ data }: { data: MemberPayoutRow[] }) {
 function TaskByAssigneeChart({ data }: { data: TaskAssigneeRow[] }) {
   if (data.length === 0) {
     return (
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+      <div className="bg-surface rounded-xl border border-white/10 p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Task by Assignee</h2>
-        <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+        <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
           Belum ada tugas aktif.
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+    <div className="bg-surface rounded-xl border border-white/10 p-6">
       <h2 className="text-lg font-semibold text-white mb-4">Task by Assignee</h2>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} layout="vertical" margin={{ left: 10 }}>
@@ -169,7 +169,7 @@ export default function DashboardCharts({
     <>
       {/* Row 1: Cash Flow + Project Status */}
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Kas 6 Bulan Terakhir</h2>
           {hasMonthly ? (
             <ResponsiveContainer width="100%" height={260}>
@@ -183,13 +183,13 @@ export default function DashboardCharts({
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+            <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
               Belum ada transaksi. Catat di menu Kas &amp; Transaksi.
             </div>
           )}
         </div>
 
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Status Project</h2>
           {hasStatus ? (
             <div className="flex items-center gap-6">
@@ -216,7 +216,7 @@ export default function DashboardCharts({
               </div>
             </div>
           ) : (
-            <div className="h-[260px] flex items-center justify-center text-white/40 text-sm">
+            <div className="h-[260px] flex items-center justify-center text-white/55 text-sm">
               Belum ada project.
             </div>
           )}

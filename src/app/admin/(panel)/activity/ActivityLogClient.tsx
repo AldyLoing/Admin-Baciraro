@@ -167,23 +167,23 @@ export default function ActivityLogClient({ activities }: Props) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total Aktivitas</p>
           <p className="text-xl font-bold text-white mt-1">{activities.length}</p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Hari Ini</p>
           <p className="text-xl font-bold text-blue-400 mt-1">
             {activities.filter((a) => a.created_at.slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
           </p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Pembuatan</p>
           <p className="text-xl font-bold text-emerald-400 mt-1">
             {activities.filter((a) => a.action === "create").length}
           </p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Penghapusan</p>
           <p className="text-xl font-bold text-red-400 mt-1">
             {activities.filter((a) => a.action === "delete").length}
@@ -201,7 +201,7 @@ export default function ActivityLogClient({ activities }: Props) {
         <select
           value={actionFilter}
           onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-          className="bg-[#151515] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-[#E9A64E]"
+          className="bg-surface border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-ink"
         >
           <option value="">Semua aksi</option>
           {actionOptions.map((a) => (
@@ -211,7 +211,7 @@ export default function ActivityLogClient({ activities }: Props) {
         <select
           value={userFilter}
           onChange={(e) => { setUserFilter(e.target.value); setPage(1); }}
-          className="bg-[#151515] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-[#E9A64E]"
+          className="bg-surface border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-ink"
         >
           <option value="">Semua pengguna</option>
           {userOptions.map((u) => (
@@ -221,13 +221,13 @@ export default function ActivityLogClient({ activities }: Props) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+        <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
           <p className="text-lg font-medium mb-1">Belum ada aktivitas</p>
           <p className="text-sm">Aktivitas akan tercatat saat ada perubahan data.</p>
         </div>
       ) : (
         <>
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -258,7 +258,7 @@ export default function ActivityLogClient({ activities }: Props) {
                         {a.user_name}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${actionColor[a.action] ?? "bg-white/10 text-white/50"}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${actionColor[a.action] ?? "bg-white/10 text-white/50"}`}>
                           {actionLabel[a.action] ?? a.action}
                         </span>
                       </td>
@@ -268,7 +268,7 @@ export default function ActivityLogClient({ activities }: Props) {
                       <td className="px-4 py-3 text-white whitespace-nowrap max-w-[220px] truncate">
                         {a.entity_name}
                       </td>
-                      <td className="px-4 py-3 text-white/40 text-xs max-w-[260px]">
+                      <td className="px-4 py-3 text-white/55 text-xs max-w-[260px]">
                         {hasSnapshot && (
                           <span className="mr-1.5 px-1.5 py-0.5 rounded bg-white/10 text-white/50 whitespace-nowrap">
                             {isExpanded ? "Tutup" : "Lihat sebelum/sesudah"}
@@ -285,7 +285,7 @@ export default function ActivityLogClient({ activities }: Props) {
                           {hasSnapshot ? (
                             <div className="grid md:grid-cols-2 gap-4">
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-red-400/80 font-semibold mb-1">
+                                <p className="text-xs uppercase tracking-wide text-red-400/80 font-semibold mb-1">
                                   Sebelum
                                 </p>
                                 <pre className="text-xs text-white/70 bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words">
@@ -293,7 +293,7 @@ export default function ActivityLogClient({ activities }: Props) {
                                 </pre>
                               </div>
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-emerald-400/80 font-semibold mb-1">
+                                <p className="text-xs uppercase tracking-wide text-emerald-400/80 font-semibold mb-1">
                                   Sesudah
                                 </p>
                                 <pre className="text-xs text-white/70 bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words">
@@ -307,7 +307,7 @@ export default function ActivityLogClient({ activities }: Props) {
                             </pre>
                           )}
                           {hasSnapshot && summary && (
-                            <p className="text-xs text-white/40 mt-2">{summary}</p>
+                            <p className="text-xs text-white/55 mt-2">{summary}</p>
                           )}
                         </td>
                       </tr>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/admin/format";
 import ReportsCharts from "@/components/admin/ReportsCharts";
 
@@ -20,7 +19,6 @@ type Props = {
 };
 
 export default function ReportsClient({ plByProject, memberDistribution, allTransactions, allPayouts }: Props) {
-  const router = useRouter();
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
@@ -126,24 +124,13 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Back button */}
-      <button
-        onClick={() => router.push("/admin")}
-        className="text-sm text-white/50 hover:text-[#E9A64E] transition flex items-center gap-1 mb-3"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Dashboard
-      </button>
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Laporan</h1>
           <p className="text-white/50 mt-1">Ringkasan keuangan dan analitik Baciraro.</p>
         </div>
-        <button onClick={exportXlsx} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition">
+        <button onClick={exportXlsx} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-line-2 bg-surface-2 text-ink hover:bg-white/10 text-sm font-semibold transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
           Export XLSX
         </button>
@@ -152,9 +139,9 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
       {/* Date Range */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <label className="text-sm text-white/50">Dari</label>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="px-3 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white outline-none focus:border-white/20" />
+        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="px-3 py-2 rounded-lg bg-surface border border-white/10 text-sm text-white outline-none focus:border-white/20" />
         <label className="text-sm text-white/50">Sampai</label>
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-3 py-2 rounded-lg bg-[#151515] border border-white/10 text-sm text-white outline-none focus:border-white/20" />
+        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-3 py-2 rounded-lg bg-surface border border-white/10 text-sm text-white outline-none focus:border-white/20" />
       </div>
 
       {/* Tabs */}
@@ -164,7 +151,7 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
-              activeTab === t.key ? "border-[#D97A2B] text-white" : "border-transparent text-white/40 hover:text-white/60"
+              activeTab === t.key ? "border-brand text-white" : "border-transparent text-white/55 hover:text-white/60"
             }`}
           >
             {t.label}
@@ -175,33 +162,33 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
       {/* Tab: Ringkasan */}
       {activeTab === "ringkasan" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <div className="bg-surface rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Pendapatan</p>
             <p className="text-lg sm:text-2xl font-bold text-blue-400 mt-2">{formatRupiah(filtered.totalIncome)}</p>
           </div>
-          <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <div className="bg-surface rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Total Pengeluaran</p>
             <p className="text-lg sm:text-2xl font-bold text-red-400 mt-2">{formatRupiah(filtered.totalExpense)}</p>
           </div>
-          <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <div className="bg-surface rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Bersih (Income - Expense)</p>
             <p className={`text-lg sm:text-2xl font-bold mt-2 ${filtered.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.netProfit)}</p>
           </div>
-          <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <div className="bg-surface rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Siap Distribusi</p>
             <p className={`text-lg sm:text-2xl font-bold mt-2 ${filtered.confirmedNet >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatRupiah(filtered.confirmedNet)}</p>
-            <p className="text-[11px] text-white/40 mt-1">Payout sudah selesai</p>
+            <p className="text-xs text-white/55 mt-1">Payout sudah selesai</p>
           </div>
-          <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+          <div className="bg-surface rounded-xl border border-white/10 p-5">
             <p className="text-xs font-medium text-white/50 uppercase tracking-wider">Kas Baciraro</p>
-            <p className="text-lg sm:text-2xl font-bold text-[#E9A64E] mt-2">{formatRupiah(filtered.totalKas)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-brand-ink mt-2">{formatRupiah(filtered.totalKas)}</p>
           </div>
         </div>
       )}
 
       {/* Tab: P&L */}
       {activeTab === "pl" && (
-        <div className="bg-[#151515] rounded-xl border border-white/10 overflow-hidden mb-6">
+        <div className="bg-surface rounded-xl border border-white/10 overflow-hidden mb-6">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -218,7 +205,7 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
               </thead>
               <tbody>
                 {filtered.pl.length === 0 ? (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-white/40">Tidak ada data</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-white/55">Tidak ada data</td></tr>
                 ) : (
                   filtered.pl.map((p) => {
                     const projectPayouts = allPayouts.filter((po) => po.project_id === p.id);
@@ -229,17 +216,17 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
                         <td className="px-4 py-3 text-white font-medium">{p.name}</td>
                         <td className="px-4 py-3 text-white/60">{p.client_name || "-"}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${p.status === "paid" ? "bg-green-600 text-white" : p.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "paid" ? "bg-green-600 text-white" : p.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"}`}>
                             {p.status === "paid" ? "Lunas" : p.status === "completed" ? "Selesai" : "Aktif"}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           {allPaid ? (
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400">Dibayar</span>
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400">Dibayar</span>
                           ) : hasPaidPayout || projectPayouts.length > 0 ? (
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400">Proses</span>
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400">Proses</span>
                           ) : (
-                            <span className="text-white/30">-</span>
+                            <span className="text-white/55">-</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right text-blue-400">{formatRupiah(p.income)}</td>
@@ -270,7 +257,7 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
 
       {/* Tab: Trend */}
       {activeTab === "trend" && (
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-6 mb-6">
           <h3 className="text-sm font-semibold text-white/70 mb-4">Trend Pendapatan vs Pengeluaran</h3>
           <ReportsCharts type="trend" data={filtered.monthly} />
         </div>
@@ -278,7 +265,7 @@ export default function ReportsClient({ plByProject, memberDistribution, allTran
 
       {/* Tab: Distribusi */}
       {activeTab === "distribusi" && (
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-6 mb-6">
           <h3 className="text-sm font-semibold text-white/70 mb-4">Total Payout per Member</h3>
           <ReportsCharts type="distribution" data={memberDistribution} />
         </div>

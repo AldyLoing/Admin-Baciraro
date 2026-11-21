@@ -46,7 +46,7 @@ export default function SmartFilter({ fields, values, onChange, onReset }: Props
           </svg>
           Filter
           {activeCount > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#D97A2B] text-white rounded-full">
+            <span className="px-1.5 py-0.5 text-xs font-bold bg-brand text-white rounded-full">
               {activeCount}
             </span>
           )}
@@ -74,7 +74,7 @@ export default function SmartFilter({ fields, values, onChange, onReset }: Props
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/70"
             >
               {field.label}: {label}
-              <button onClick={() => updateField(field.key, "")} className="text-white/40 hover:text-white">
+              <button onClick={() => updateField(field.key, "")} className="text-white/55 hover:text-white">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -86,7 +86,7 @@ export default function SmartFilter({ fields, values, onChange, onReset }: Props
 
       {/* Expanded filter panel */}
       {expanded && (
-        <div className="mt-3 p-4 rounded-lg bg-[#151515] border border-white/10 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="mt-3 p-4 rounded-lg bg-surface border border-white/10 grid grid-cols-2 md:grid-cols-4 gap-3">
           {fields.map((field) => (
             <div key={field.key}>
               <label className="block text-xs text-white/50 mb-1">{field.label}</label>
@@ -114,7 +114,7 @@ export default function SmartFilter({ fields, values, onChange, onReset }: Props
                   value={values[field.key] || ""}
                   onChange={(e) => updateField(field.key, e.target.value)}
                   placeholder={field.placeholder || ""}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none focus:border-white/20 transition placeholder:text-white/30"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none focus:border-white/20 transition placeholder:text-white/55"
                 />
               )}
             </div>

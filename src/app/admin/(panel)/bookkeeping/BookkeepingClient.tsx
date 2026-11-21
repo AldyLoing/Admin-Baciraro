@@ -197,7 +197,7 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
         </div>
         <button
           onClick={exportExcel}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-[#151515] text-white/70 text-sm font-medium hover:bg-white/5 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 bg-surface text-white/70 text-sm font-medium hover:bg-white/5 transition"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -206,7 +206,7 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
         </button>
       </div>
 
-      <div className="bg-[#151515] rounded-xl border border-white/10 p-5 mb-8">
+      <div className="bg-surface rounded-xl border border-white/10 p-5 mb-8">
         <div className="flex items-center justify-between">
           <p className="text-sm text-white/50">Total Semua Transaksi</p>
           <p className="text-2xl font-bold text-white">{formatRupiah(grandTotal)}</p>
@@ -215,11 +215,11 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {summary.filter((c) => c.total > 0).map((cat) => (
-          <div key={cat.category} className="bg-[#151515] rounded-xl border border-white/10 p-5 relative overflow-hidden">
+          <div key={cat.category} className="bg-surface rounded-xl border border-white/10 p-5 relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${CATEGORY_COLORS[cat.category]}`} />
             <p className="text-sm text-white/50">{cat.category}</p>
             <p className="text-xl font-bold text-white mt-1">{formatRupiah(cat.total)}</p>
-            <p className="text-xs text-white/40 mt-1">{cat.items.length} transaksi</p>
+            <p className="text-xs text-white/55 mt-1">{cat.items.length} transaksi</p>
           </div>
         ))}
       </div>
@@ -229,9 +229,9 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
           <div className="flex items-center gap-2 mb-3">
             <div className={`w-1 h-5 rounded-full bg-gradient-to-b ${CATEGORY_COLORS[cat.category]}`} />
             <h2 className="text-lg font-semibold text-white">{cat.category}</h2>
-            <span className="text-sm text-white/40 ml-auto">{formatRupiah(cat.total)}</span>
+            <span className="text-sm text-white/55 ml-auto">{formatRupiah(cat.total)}</span>
           </div>
-          <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+          <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -266,7 +266,7 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
 
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-white mb-3">Saldo Akun (Neraca)</h2>
-        <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+        <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -285,7 +285,7 @@ export default function BookkeepingClient({ entries, accounts, isAdmin }: Props)
                   <tr key={b.name} className="border-b border-white/5 hover:bg-white/5">
                     <td className="px-4 py-3 font-medium text-white">{b.name}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${typeColor[b.type]}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColor[b.type]}`}>
                         {typeLabel[b.type] ?? b.type}
                       </span>
                     </td>

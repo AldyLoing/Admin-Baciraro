@@ -51,17 +51,17 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
   }
 
   const inputCls =
-    "w-full px-3 py-2 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm placeholder:text-white/25 focus:border-[#D97A2B] outline-none";
+    "w-full px-3 py-2 rounded-lg border border-white/10 bg-field text-white text-sm placeholder:text-white/55 focus:border-brand outline-none";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#151515] border border-white/10 rounded-xl p-6 shadow-2xl">
+      <div className="relative w-full max-w-sm bg-surface border border-white/10 rounded-xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-white">Ganti Password</h2>
           <button
             onClick={onClose}
-            className="text-white/40 hover:text-white transition p-1"
+            className="text-white/55 hover:text-white transition p-1"
             aria-label="Tutup"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +81,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
             <p className="text-white/50 text-xs mt-1">Gunakan password baru saat login berikutnya.</p>
             <button
               onClick={onClose}
-              className="mt-5 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold hover:opacity-90 transition"
+              className="mt-5 w-full px-4 py-2 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition"
             >
               Tutup
             </button>
@@ -132,7 +132,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+              className="w-full px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? "Menyimpan..." : "Simpan Password Baru"}
             </button>

@@ -36,7 +36,7 @@ export default function SopClient() {
             onClick={() => setSelectedId(item.id)}
             className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
               selectedId === item.id
-                ? "border-[#D97A2B]/40 bg-[#D97A2B]/10 text-[#E9A64E]"
+                ? "border-brand/40 bg-brand/10 text-brand-ink"
                 : "border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
             }`}
           >
@@ -124,7 +124,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
 
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D97A2B]">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
             Standar Operasional
           </p>
           <h1 className="mt-2 text-2xl md:text-3xl font-bold text-white">{sopMeta.title}</h1>
@@ -150,7 +150,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
           </button>
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand transition hover:opacity-90"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -165,36 +165,36 @@ function SopDocumentView({ document }: { document: SopDocument }) {
         </div>
       </div>
 
-      <section className="rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">
+      <section className="rounded-xl border border-white/10 bg-surface p-5 md:p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/55">
           Alur Produksi
         </h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {sopStages.map((stage, index) => (
             <div key={stage.code} className="flex items-center gap-2">
-              <span className="rounded-lg border border-[#D97A2B]/30 bg-[#D97A2B]/10 px-3 py-1.5 text-xs font-medium text-[#E9A64E]">
+              <span className="rounded-lg border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand-ink">
                 {stage.code} · {stage.name}
               </span>
-              {index < sopStages.length - 1 && <span className="text-white/20">→</span>}
+              {index < sopStages.length - 1 && <span className="text-white/55">→</span>}
             </div>
           ))}
         </div>
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/55">
           {document.rulesTitle}
         </h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {weightRules.map((rule) => (
             <div
               key={rule.label}
-              className="sop-card rounded-xl border border-white/10 bg-[#151515] p-4"
+              className="sop-card rounded-xl border border-white/10 bg-surface p-4"
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-white/40">
+              <p className="text-xs font-medium uppercase tracking-wide text-white/55">
                 {rule.label}
               </p>
-              <p className="mt-2 text-lg font-bold text-[#E9A64E]">{rule.value}</p>
+              <p className="mt-2 text-lg font-bold text-brand-ink">{rule.value}</p>
               <p className="mt-2 text-xs leading-relaxed text-white/50">{rule.note}</p>
             </div>
           ))}
@@ -203,10 +203,10 @@ function SopDocumentView({ document }: { document: SopDocument }) {
 
       <section>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/55">
             {sopStages.length} Tahap Produksi
           </h2>
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-white/55">
             {document.stageNote}
           </p>
         </div>
@@ -214,16 +214,16 @@ function SopDocumentView({ document }: { document: SopDocument }) {
           {sopStages.map((stage) => (
             <article
               key={stage.code}
-              className="sop-card rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6"
+              className="sop-card rounded-xl border border-white/10 bg-surface p-5 md:p-6"
             >
               <div className="flex gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#C44A3A] to-[#D97A2B] font-bold text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#C44A3A] to-brand font-bold text-white">
                   {stage.code}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-white">{stage.name}</h3>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50">
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/50">
                       PIC: {stage.pic}
                     </span>
                   </div>
@@ -232,7 +232,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
                   <ol className="mt-4 space-y-1.5 text-sm text-white/70">
                     {stage.steps.map((step, index) => (
                       <li key={index} className="flex gap-2.5">
-                        <span className="mt-0.5 shrink-0 text-xs font-semibold text-[#D97A2B]">
+                        <span className="mt-0.5 shrink-0 text-xs font-semibold text-brand">
                           {stage.code}.{index + 1}
                         </span>
                         <span className="leading-relaxed">{step}</span>
@@ -241,20 +241,20 @@ function SopDocumentView({ document }: { document: SopDocument }) {
                   </ol>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <div className="sop-accent rounded-lg border border-white/5 bg-[#0d0d0d] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                    <div className="sop-accent rounded-lg border border-white/5 bg-field p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-white/55">
                         Output
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">{stage.output}</p>
                     </div>
-                    <div className="sop-accent rounded-lg border border-white/5 bg-[#0d0d0d] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                    <div className="sop-accent rounded-lg border border-white/5 bg-field p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-white/55">
                         Dokumentasi
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">{stage.evidence}</p>
                     </div>
-                    <div className="sop-accent rounded-lg border border-white/5 bg-[#0d0d0d] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                    <div className="sop-accent rounded-lg border border-white/5 bg-field p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-white/55">
                         QC
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">{stage.qc}</p>
@@ -268,32 +268,32 @@ function SopDocumentView({ document }: { document: SopDocument }) {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="sop-card rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6">
+        <div className="sop-card rounded-xl border border-white/10 bg-surface p-5 md:p-6">
           <h2 className="text-base font-semibold text-white">Upload Web & Arsip Drive</h2>
           <ul className="mt-4 space-y-2.5 text-sm text-white/60">
             {documentationRules.map((rule, index) => (
               <li key={index} className="flex gap-2.5">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#D97A2B]" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span className="leading-relaxed">{rule}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="sop-card rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6">
+        <div className="sop-card rounded-xl border border-white/10 bg-surface p-5 md:p-6">
           <h2 className="text-base font-semibold text-white">Publikasi Media Sosial</h2>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             {socialPlatforms.map((item) => (
-              <div key={item.platform} className="sop-accent rounded-lg border border-white/5 bg-[#0d0d0d] p-3">
+              <div key={item.platform} className="sop-accent rounded-lg border border-white/5 bg-field p-3">
                 <p className="text-sm font-semibold text-white">{item.platform}</p>
-                <p className="mt-1 text-xs text-[#E9A64E]">{item.format}</p>
+                <p className="mt-1 text-xs text-brand-ink">{item.format}</p>
               </div>
             ))}
           </div>
           <ul className="mt-4 space-y-2.5 text-sm text-white/60">
             {socialRules.map((rule, index) => (
               <li key={index} className="flex gap-2.5">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#D97A2B]" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span className="leading-relaxed">{rule}</span>
               </li>
             ))}
@@ -301,7 +301,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
         </div>
       </section>
 
-      <section className="sop-card rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6">
+      <section className="sop-card rounded-xl border border-white/10 bg-surface p-5 md:p-6">
         <h2 className="text-base font-semibold text-white">{document.liveReportTitle}</h2>
         <p className="mt-1 text-sm text-white/50">
           {document.liveReportDescription}
@@ -310,7 +310,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
           {liveReportItems.map((field) => (
             <span
               key={field}
-              className="rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-1.5 text-xs text-white/60"
+              className="rounded-lg border border-white/10 bg-field px-3 py-1.5 text-xs text-white/60"
             >
               {field}
             </span>
@@ -337,7 +337,7 @@ function SopDocumentView({ document }: { document: SopDocument }) {
         />
       </section>
 
-      <p className="pb-4 text-center text-xs text-white/30">
+      <p className="pb-4 text-center text-xs text-white/55">
         {sopMeta.title} · {sopMeta.version} · {sopMeta.owner}
       </p>
     </div>
@@ -355,10 +355,10 @@ type ChecklistCardProps = {
 
 function ChecklistCard({ title, subtitle, items, prefix, checks, onToggle }: ChecklistCardProps) {
   return (
-    <div className="sop-card rounded-xl border border-white/10 bg-[#151515] p-5 md:p-6">
+    <div className="sop-card rounded-xl border border-white/10 bg-surface p-5 md:p-6">
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-base font-semibold text-white">{title}</h2>
-        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50">
+        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/50">
           {subtitle}
         </span>
       </div>
@@ -373,9 +373,9 @@ function ChecklistCard({ title, subtitle, items, prefix, checks, onToggle }: Che
                   type="checkbox"
                   checked={checked}
                   onChange={() => onToggle(key)}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#D97A2B]"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                 />
-                <span className={checked ? "text-white/35 line-through" : "text-white/70"}>
+                <span className={checked ? "text-white/55 line-through" : "text-white/70"}>
                   {item}
                 </span>
               </label>

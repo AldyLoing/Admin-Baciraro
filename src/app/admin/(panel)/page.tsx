@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/utils/admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import DashboardClient from "./DashboardClient";
+import type { MyTask, MyTaskGroup } from "@/components/admin/MyTasksCard";
 
 export const revalidate = 30;
 
@@ -56,7 +57,7 @@ export default async function AdminDashboardPage() {
       .eq("journal_entries.status", "active"),
     supabase
       .from("tasks")
-      .select("id, title, status, assigned_to, priority, due_date")
+      .select("id, title, status, assigned_to, priority, due_date, project_id")
       .neq("status", "cancelled"),
     supabase
       .from("payouts")
@@ -186,6 +187,39 @@ export default async function AdminDashboardPage() {
     .filter((p: any) => p.status !== "paid" && !p.finalized_at)
     .map((p: any) => ({ id: Number(p.id), title: p.project_name || "Untitled", project_name: p.project_name }));
 
+  // --- Tugas saya di project berjalan (untuk admin yang sedang login) ---
+  const runningProjects = new Map<number, string>(
+    allProjects.filter((p: any) => p.status === "active").map((p: any) => [Number(p.id), String(p.name)])
+  );
+  const myGroupMap = new Map<number, MyTaskGroup>();
+  for (const t of allTasks) {
+    if (Number(t.assigned_to) !== Number(admin.id)) continue;
+    if (t.project_id == null || !runningProjects.has(Number(t.project_id))) continue;
+    if (t.status !== "pending" && t.status !== "active" && t.status !== "completed") continue;
+    const pid = Number(t.project_id);
+    const group = myGroupMap.get(pid) ?? { projectId: pid, projectName: runningProjects.get(pid)!, tasks: [] };
+    group.tasks.push({
+      id: Number(t.id),
+      title: t.title || "Tanpa judul",
+      status: t.status,
+      dueDate: t.due_date ? String(t.due_date).slice(0, 10) : null,
+    } satisfies MyTask);
+    myGroupMap.set(pid, group);
+  }
+  const openCount = (g: MyTaskGroup) => g.tasks.filter((t) => t.status !== "completed").length;
+  const myTaskGroups = Array.from(myGroupMap.values())
+    .map((g) => ({
+      ...g,
+      // belum selesai dulu (tenggat terdekat di atas), yang sudah selesai di bawah
+      tasks: [...g.tasks].sort((a, b) => {
+        const ac = a.status === "completed" ? 1 : 0;
+        const bc = b.status === "completed" ? 1 : 0;
+        if (ac !== bc) return ac - bc;
+        return (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31");
+      }),
+    }))
+    .sort((a, b) => openCount(b) - openCount(a) || a.projectName.localeCompare(b.projectName));
+
   return (
     <DashboardClient
       firstName={firstName}
@@ -209,6 +243,7 @@ export default async function AdminDashboardPage() {
       taskByAssignee={taskByAssignee}
       overdueTasks={overdueTasks}
       pendingPayouts={pendingPayouts}
+      myTaskGroups={myTaskGroups}
     />
   );
 }

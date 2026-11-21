@@ -26,7 +26,7 @@ export default function SearchInput({ value, onChange, placeholder = "Cari...", 
   return (
     <div className={`relative ${className}`}>
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/55 pointer-events-none"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -39,12 +39,12 @@ export default function SearchInput({ value, onChange, placeholder = "Cari...", 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white text-sm placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition"
+        className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-white/10 bg-field text-white text-sm placeholder:text-white/55 focus:border-brand outline-none transition"
       />
       {value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 hover:text-white/60 transition"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

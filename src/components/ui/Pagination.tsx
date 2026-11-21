@@ -29,7 +29,7 @@ export default function Pagination({ page, totalItems, perPage, onPageChange }: 
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 px-1">
-      <p className="text-xs text-white/40">
+      <p className="text-xs text-white/55">
         Menampilkan {start}–{end} dari {totalItems}
       </p>
       <div className="flex items-center gap-1">
@@ -42,7 +42,7 @@ export default function Pagination({ page, totalItems, perPage, onPageChange }: 
         </button>
         {pages.map((p, i) =>
           p === "..." ? (
-            <span key={`dots-${i}`} className="px-2 py-1.5 text-xs text-white/30">
+            <span key={`dots-${i}`} className="px-2 py-1.5 text-xs text-white/55">
               ...
             </span>
           ) : (
@@ -51,7 +51,7 @@ export default function Pagination({ page, totalItems, perPage, onPageChange }: 
               onClick={() => onPageChange(p)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                 p === page
-                  ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white"
+                  ? "bg-brand text-on-brand"
                   : "border border-white/10 text-white/60 hover:bg-white/5"
               }`}
             >

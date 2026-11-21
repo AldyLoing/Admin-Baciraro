@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { useState } from "react";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/admin/format";
@@ -57,7 +58,7 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
   }
 
   async function remove(id: string | number) {
-    if (!confirm("Arsipkan notifikasi ini? Notifikasi tidak akan muncul lagi di daftar.")) return;
+    if (!(await confirmDialog("Arsipkan notifikasi ini? Notifikasi tidak akan muncul lagi di daftar."))) return;
     const res = await fetch("/api/admin/notifications", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -95,23 +96,23 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Total</p>
           <p className="text-xl font-bold text-white mt-1">{notifications.length}</p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Belum Dibaca</p>
           <p className="text-xl font-bold text-orange-400 mt-1">{unreadCount}</p>
         </div>
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-5">
+        <div className="bg-surface rounded-xl border border-white/10 p-5">
           <p className="text-sm text-white/50">Sudah Dibaca</p>
           <p className="text-xl font-bold text-emerald-400 mt-1">{notifications.length - unreadCount}</p>
         </div>
       </div>
 
       {notifications.length === 0 ? (
-        <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
-          <svg className="w-12 h-12 mx-auto mb-4 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
+          <svg className="w-12 h-12 mx-auto mb-4 text-white/55" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           <p className="text-lg font-medium mb-1">Tidak ada notifikasi</p>
@@ -122,8 +123,8 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`bg-[#151515] rounded-xl border border-white/10 p-4 flex items-start gap-4 transition ${
-                !n.is_read ? "border-l-2 border-l-[#D97A2B]" : ""
+              className={`bg-surface rounded-xl border border-white/10 p-4 flex items-start gap-4 transition ${
+                !n.is_read ? "border-l-2 border-l-brand" : ""
               }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${typeIcon[n.type] ?? typeIcon.info}`}>
@@ -151,9 +152,9 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
                   {n.message}
                 </p>
                 <div className="flex items-center gap-3 mt-1.5">
-                  <span className="text-xs text-white/40">{formatDateTime(n.created_at)}</span>
+                  <span className="text-xs text-white/55">{formatDateTime(n.created_at)}</span>
                   {n.link && (
-                    <Link href={n.link} className="text-xs text-[#E9A64E] hover:underline">
+                    <Link href={n.link} className="text-xs text-brand-ink hover:underline">
                       Lihat →
                     </Link>
                   )}
@@ -164,7 +165,7 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
                 {!n.is_read && (
                   <button
                     onClick={() => markRead(n.id)}
-                    className="p-1.5 text-white/30 hover:text-emerald-400 transition"
+                    className="p-1.5 text-white/55 hover:text-emerald-400 transition"
                     aria-label="Tandai sudah dibaca"
                     title="Tandai sudah dibaca"
                   >
@@ -175,7 +176,7 @@ export default function NotificationsClient({ notifications: initial, unreadCoun
                 )}
                 <button
                   onClick={() => remove(n.id)}
-                  className="p-1.5 text-white/30 hover:text-red-400 transition"
+                  className="p-1.5 text-white/55 hover:text-red-400 transition"
                   aria-label="Hapus notifikasi"
                   title="Hapus"
                 >

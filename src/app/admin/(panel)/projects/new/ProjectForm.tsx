@@ -19,9 +19,9 @@ type ContributionRow = {
 };
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] focus:ring-2 focus:ring-[#D97A2B]/20 outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition";
 
 type Template = {
   id: string;
@@ -138,7 +138,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
       <div className="mb-8">
         <button
           onClick={() => router.push("/admin/projects")}
-          className="text-sm text-white/50 hover:text-[#E9A64E] transition flex items-center gap-1 mb-3"
+          className="text-sm text-white/50 hover:text-brand-ink transition flex items-center gap-1 mb-3"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -150,9 +150,9 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
       </div>
 
       {templates.length > 0 && (
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-4 mb-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-4 mb-6">
           <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-[#E9A64E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-brand-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span className="text-sm text-white/70">Gunakan Template:</span>
@@ -175,7 +175,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
                     }
                     if (t.description) setDescription(t.description);
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-[#D97A2B]/30 text-[#E9A64E] text-xs font-medium hover:bg-[#D97A2B]/10 transition"
+                  className="px-3 py-1.5 rounded-lg border border-brand/30 text-brand-ink text-xs font-medium hover:bg-brand/10 transition"
                   title={t.description ?? t.name}
                 >
                   {t.name}
@@ -187,7 +187,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6 space-y-4">
+        <div className="bg-surface rounded-xl border border-white/10 p-6 space-y-4">
           <h2 className="font-semibold text-white">Informasi Project</h2>
           <div>
             <label className="block text-sm font-medium text-white/70 mb-1">Nama Project *</label>
@@ -221,7 +221,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Nilai Total (Rp) <span className="text-white/40">· opsional</span></label>
+              <label className="block text-sm font-medium text-white/70 mb-1">Nilai Total (Rp) <span className="text-white/55">· opsional</span></label>
               <input
                 type="number"
                 min="0"
@@ -246,13 +246,13 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
           </div>
         </div>
 
-        <div className="bg-[#151515] rounded-xl border border-white/10 p-6">
+        <div className="bg-surface rounded-xl border border-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="font-semibold text-white">Kontribusi Bagi Hasil</h2>
               <p className="text-xs text-white/50 mt-0.5">
                 Kontributor boleh dari anggota maupun orang luar (isikan nama). Persen wajib dari awal dan totalnya{" "}
-                <span className="font-semibold text-[#E9A64E]">100%</span>. Nominal opsional — bisa diisi belakangan;
+                <span className="font-semibold text-brand-ink">100%</span>. Nominal opsional — bisa diisi belakangan;
                 pembagian tetap berdasar persen. Kas Baciraro otomatis 10%.
               </p>
             </div>
@@ -260,7 +260,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
               <button
                 type="button"
                 onClick={addRow}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#D97A2B]/40 text-[#E9A64E] text-sm font-medium hover:bg-[#D97A2B]/10 transition"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-brand/40 text-brand-ink text-sm font-medium hover:bg-brand/10 transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -281,7 +281,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
           </div>
 
           {rows.length === 0 ? (
-            <div className="text-center py-8 text-white/40 border border-dashed border-white/20 rounded-lg text-sm">
+            <div className="text-center py-8 text-white/55 border border-dashed border-white/20 rounded-lg text-sm">
               Belum ada kontributor. Project boleh berjalan tanpa kontributor; klik &quot;Anggota&quot; untuk memilih
               dari tim atau &quot;Orang Luar&quot; untuk kontributor di luar anggota.
             </div>
@@ -341,7 +341,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
                     <button
                       type="button"
                       onClick={() => removeRow(index)}
-                      className="p-2 text-white/40 hover:text-red-400 transition"
+                      className="p-2 text-white/55 hover:text-red-400 transition"
                       aria-label="Hapus"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,7 +364,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
           {rows.length > 0 && (
             <div
               className={`mt-4 flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium ${
-                totalPercent === 100 ? "bg-emerald-500/10 text-emerald-400" : "bg-[#D97A2B]/10 text-[#E9A64E]"
+                totalPercent === 100 ? "bg-emerald-500/10 text-emerald-400" : "bg-brand/10 text-brand-ink"
               }`}
             >
               <span>Total kontribusi</span>
@@ -383,7 +383,7 @@ export default function ProjectForm({ members, templates = [] }: { members: Memb
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition disabled:opacity-50"
+            className="px-6 py-3 rounded-lg bg-brand text-on-brand font-semibold hover:opacity-90 transition disabled:opacity-50"
           >
             {loading ? "Menyimpan..." : "Simpan Project"}
           </button>

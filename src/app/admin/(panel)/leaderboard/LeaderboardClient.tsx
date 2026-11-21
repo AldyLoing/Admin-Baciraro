@@ -99,7 +99,7 @@ export default function LeaderboardClient({
           {podium.map((c, i) => (
             <div
               key={c.id}
-              className="bg-[#111111] border border-white/10 rounded-2xl p-5 flex flex-col items-center text-center"
+              className="bg-surface border border-white/10 rounded-2xl p-5 flex flex-col items-center text-center"
             >
               <div className="text-2xl mb-2">{RANK_ICONS[i]}</div>
               <Avatar row={c} color={RANK_COLORS[i]} />
@@ -112,19 +112,19 @@ export default function LeaderboardClient({
               >
                 {c.total_points.toLocaleString("id-ID")}
               </p>
-              <p className="text-xs text-white/40">{c.claim_count} klaim</p>
+              <p className="text-xs text-white/55">{c.claim_count} klaim</p>
             </div>
           ))}
         </div>
       )}
 
-      <div className="bg-[#111111] border border-white/10 rounded-2xl p-5">
+      <div className="bg-surface border border-white/10 rounded-2xl p-5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari nama / email / no. HP..."
-            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-[#D97A2B] outline-none text-sm"
+            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/55 focus:border-brand outline-none text-sm"
           />
           <div className="flex gap-2 text-sm">
             {(
@@ -139,7 +139,7 @@ export default function LeaderboardClient({
                 onClick={() => setSort(k)}
                 className={`px-3 py-2 rounded-lg transition ${
                   sort === k
-                    ? "bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white"
+                    ? "bg-brand text-on-brand"
                     : "bg-white/5 text-white/60 hover:text-white"
                 }`}
               >
@@ -152,7 +152,7 @@ export default function LeaderboardClient({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-white/40 text-left border-b border-white/10">
+              <tr className="text-white/55 text-left border-b border-white/10">
                 <th className="py-2 pr-3 font-medium">#</th>
                 <th className="py-2 pr-3 font-medium">Customer</th>
                 <th className="py-2 pr-3 font-medium text-right">Koin</th>
@@ -167,7 +167,7 @@ export default function LeaderboardClient({
                   key={c.id}
                   className="border-b border-white/5 hover:bg-white/[0.03]"
                 >
-                  <td className="py-3 pr-3 text-white/40 tabular-nums">{i + 1}</td>
+                  <td className="py-3 pr-3 text-white/55 tabular-nums">{i + 1}</td>
                   <td className="py-3 pr-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar row={c} size={9} />
@@ -175,13 +175,13 @@ export default function LeaderboardClient({
                         <p className="text-white font-medium truncate">
                           {c.name || "Customer"}
                         </p>
-                        <p className="text-white/40 text-xs truncate">
+                        <p className="text-white/55 text-xs truncate">
                           {c.email || c.phone || "—"}
                         </p>
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 pr-3 text-right font-bold text-[#D97A2B] tabular-nums">
+                  <td className="py-3 pr-3 text-right font-bold text-brand tabular-nums">
                     {c.total_points.toLocaleString("id-ID")}
                   </td>
                   <td className="py-3 pr-3 text-right text-white/80 tabular-nums">
@@ -197,7 +197,7 @@ export default function LeaderboardClient({
               ))}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-white/40">
+                  <td colSpan={6} className="py-8 text-center text-white/55">
                     Tidak ada customer yang cocok.
                   </td>
                 </tr>
@@ -220,11 +220,11 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <div className="bg-[#111111] border border-white/10 rounded-2xl p-5">
-      <p className="text-white/40 text-xs uppercase tracking-wide">{label}</p>
+    <div className="bg-surface border border-white/10 rounded-2xl p-5">
+      <p className="text-white/55 text-xs uppercase tracking-wide">{label}</p>
       <p
         className={`text-3xl font-bold mt-1 tabular-nums ${
-          accent ? "text-[#D97A2B]" : "text-white"
+          accent ? "text-brand" : "text-white"
         }`}
       >
         {value.toLocaleString("id-ID")}

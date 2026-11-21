@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/lib/feedback";
 import { useState, useMemo } from "react";
 import SearchInput from "@/components/ui/SearchInput";
 import { formatRupiah, formatDate } from "@/lib/admin/format";
@@ -36,9 +37,9 @@ const typeColor: Record<string, string> = {
 };
 
 const inputCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white placeholder:text-white/25 focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white placeholder:text-white/55 focus:border-brand outline-none transition";
 const selectCls =
-  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-[#0d0d0d] text-white focus:border-[#D97A2B] outline-none transition";
+  "w-full px-4 py-2.5 rounded-lg border border-white/10 bg-field text-white focus:border-brand outline-none transition";
 
 export default function AccountsClient({ accounts, isAdmin }: Props) {
   const [rows, setRows] = useState(accounts);
@@ -160,7 +161,7 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
   }
 
   async function remove(id: number) {
-    if (!confirm("Nonaktifkan akun ini? Akun lama tetap tercatat di jurnal.")) return;
+    if (!(await confirmDialog("Nonaktifkan akun ini? Akun lama tetap tercatat di jurnal."))) return;
     const res = await fetch("/api/admin/accounts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -187,7 +188,7 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
         {isAdmin && (
           <button
             onClick={() => (showForm ? setShowForm(false) : openCreate())}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#C44A3A] to-[#D97A2B] text-white text-sm font-semibold shadow-lg shadow-orange-500/20 hover:opacity-90 transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand text-on-brand text-sm font-semibold hover:opacity-90 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -205,7 +206,7 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
       )}
 
       {showForm && isAdmin && (
-        <form onSubmit={save} className="bg-[#151515] rounded-xl border border-white/10 p-6 mb-6 space-y-4">
+        <form onSubmit={save} className="bg-surface rounded-xl border border-white/10 p-6 mb-6 space-y-4">
           <h2 className="font-semibold text-white">{editingId ? "Ubah Akun" : "Tambah Akun"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -255,7 +256,7 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2.5 rounded-lg bg-[#D97A2B] text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {saving && (
                 <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,9 +290,9 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
                 <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${typeColor[type]}`}>
                   {typeLabel[type]}
                 </span>
-                <span className="text-xs text-white/40">{items.length} akun</span>
+                <span className="text-xs text-white/55">{items.length} akun</span>
               </div>
-              <div className="bg-[#151515] rounded-xl border border-white/10 overflow-x-auto">
+              <div className="bg-surface rounded-xl border border-white/10 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-white/50 border-b border-white/10">
@@ -308,23 +309,23 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
                         <td className="px-4 py-3 font-mono text-white/80">{a.code}</td>
                         <td className="px-4 py-3 font-medium text-white">{a.name}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${typeColor[a.type]}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColor[a.type]}`}>
                             {typeLabel[a.type]}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${a.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/40"}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-white/10 text-white/55"}`}>
                             {a.is_active ? "Aktif" : "Nonaktif"}
                           </span>
                         </td>
                         {isAdmin && (
                           <td className="px-4 py-3 text-right">
-                            <button onClick={() => openEdit(a)} className="p-1.5 text-white/30 hover:text-[#E9A64E] transition" aria-label="Ubah">
+                            <button onClick={() => openEdit(a)} className="p-1.5 text-white/55 hover:text-brand-ink transition" aria-label="Ubah">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
-                            <button onClick={() => remove(a.id)} className="p-1.5 text-white/30 hover:text-red-400 transition" aria-label="Nonaktifkan akun">
+                            <button onClick={() => remove(a.id)} className="p-1.5 text-white/55 hover:text-red-400 transition" aria-label="Nonaktifkan akun">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
@@ -341,7 +342,7 @@ export default function AccountsClient({ accounts, isAdmin }: Props) {
         })}
 
         {filtered.length === 0 && (
-          <div className="bg-[#151515] rounded-xl border border-dashed border-white/20 p-16 text-center text-white/40">
+          <div className="bg-surface rounded-xl border border-dashed border-white/20 p-16 text-center text-white/55">
             <p className="text-lg font-medium mb-1">Belum ada akun</p>
             <p className="text-sm">Tambahkan akun untuk memulai pembukuan double-entry.</p>
           </div>
